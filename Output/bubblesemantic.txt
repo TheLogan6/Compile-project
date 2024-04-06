@@ -1,0 +1,109 @@
+﻿t3 : Semantic Analysis
+Program Start
+Name:bubble  decKind:ProcDecK  TypeChoice:ProcKType  TokenLexType: ID  TokenStr:bubble
+ProcSymbolExtra  level:0  offset:0
+DeclarePart Start
+Name:i  decKind:VarK  TypeChoice:INTEGER  TokenLexType: ID  TokenStr:i
+VarSymbolExtra : access:dir  level:1  offset:0
+Name:j  decKind:VarK  TypeChoice:INTEGER  TokenLexType: ID  TokenStr:j
+VarSymbolExtra : access:dir  level:1  offset:1
+Name:num  decKind:VarK  TypeChoice:INTEGER  TokenLexType: ID  TokenStr:num
+VarSymbolExtra : access:dir  level:1  offset:2
+Array define correctly in line3
+Name:a  decKind:VarK  TypeChoice:ArrayType  TokenLexType: ID  TokenStr:a
+VarSymbolExtra : access:dir  level:1  offset:3
+FOR DEBUG: vardec part ended
+Name:q  decKind:ProcDecK  TypeChoice:ProcKType  TokenLexType: ID  TokenStr:q
+ProcSymbolExtra  level:1  offset:23
+进入自定义q函数
+Name:num  decKind:VarK  TypeChoice:INTEGER  TokenLexType: ID  TokenStr:num
+VarSymbolExtra : access:dir  level:2  offset:0
+DEBUG: TAG: ParamList Ended
+Name:i  decKind:VarK  TypeChoice:INTEGER  TokenLexType: ID  TokenStr:i
+VarSymbolExtra : access:dir  level:2  offset:1
+Name:j  decKind:VarK  TypeChoice:INTEGER  TokenLexType: ID  TokenStr:j
+VarSymbolExtra : access:dir  level:2  offset:2
+Name:k  decKind:VarK  TypeChoice:INTEGER  TokenLexType: ID  TokenStr:k
+VarSymbolExtra : access:dir  level:2  offset:3
+Name:t  decKind:VarK  TypeChoice:INTEGER  TokenLexType: ID  TokenStr:t
+VarSymbolExtra : access:dir  level:2  offset:4
+FOR DEBUG: vardec part ended
+检查自定义q函数过程
+Program Begin
+AssignStm run correctly in line 8
+AssignStm run correctly in line 9
+RelExpression run correctly in line 10
+AssignStm run correctly in line 11
+AssignStm run correctly in line 12
+RelExpression run correctly in line 13
+Array access correctly in line 14
+Array access correctly in line 14
+RelExpression run correctly in line 14
+Array access correctly in line 15
+AssignStm run correctly in line 15
+Array access correctly in line 16
+Array access correctly in line 16
+AssignStm run correctly in line 16
+Array access correctly in line 17
+AssignStm run correctly in line 17
+AssignStm run correctly in line 18
+ConditionalStm run correctly in line 19
+AssignStm run correctly in line 20
+LoopStm run correctly in line 21
+AssignStm run correctly in line 22
+LoopStm run correctly in line 23
+自定义q函数检查完毕
+主程序运行语义检测开始
+Program Begin
+InputStm run correctly in line 26
+AssignStm run correctly in line 27
+RelExpression run correctly in line 28
+InputStm run correctly in line 29
+Array access correctly in line 30
+AssignStm run correctly in line 30
+AssignStm run correctly in line 31
+LoopStm run correctly in line 32
+CallStm run correctly in line 33
+AssignStm run correctly in line 34
+RelExpression run correctly in line 35
+OutputStm run correctly in line 36
+AssignStm run correctly in line 37
+LoopStm run correctly in line 38
+主程序运行语义检测完毕
+Array define correctly in line3
+AssignStm run correctly in line 8
+AssignStm run correctly in line 9
+RelExpression run correctly in line 10
+AssignStm run correctly in line 11
+AssignStm run correctly in line 12
+RelExpression run correctly in line 13
+Array access correctly in line 14
+Array access correctly in line 14
+RelExpression run correctly in line 14
+Array access correctly in line 15
+AssignStm run correctly in line 15
+Array access correctly in line 16
+Array access correctly in line 16
+AssignStm run correctly in line 16
+Array access correctly in line 17
+AssignStm run correctly in line 17
+AssignStm run correctly in line 18
+ConditionalStm run correctly in line 19
+AssignStm run correctly in line 20
+LoopStm run correctly in line 21
+AssignStm run correctly in line 22
+LoopStm run correctly in line 23
+InputStm run correctly in line 26
+AssignStm run correctly in line 27
+RelExpression run correctly in line 28
+InputStm run correctly in line 29
+Array access correctly in line 30
+AssignStm run correctly in line 30
+AssignStm run correctly in line 31
+LoopStm run correctly in line 32
+CallStm run correctly in line 33
+AssignStm run correctly in line 34
+RelExpression run correctly in line 35
+OutputStm run correctly in line 36
+AssignStm run correctly in line 37
+LoopStm run correctly in line 38

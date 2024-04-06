@@ -1,0 +1,19 @@
+﻿t4 : Mid code generate!
+Program
+Mid Code Program Begin
+1:MENTRY  Agr1: LabelForm addall indir 0 0 Agr2: SIZEOF  24 Agr3: 0
+2:ASSIGN  Agr1: AddrForm i dir 1 0 Agr2: 1
+3:ASSIGN  Agr1: AddrForm num dir 1 2 Agr2: 5
+4:ASSIGN  Agr1: AddrForm res dir 1 3 Agr2: 1
+5:Label  Agr1: LabelForm Lbl1 indir 0 0
+6:LTC  Agr1: AddrForm i dir 1 0 Agr2: num:AddrForm num dir 1 2 Agr3: temp1:TempForm temp1 dir 1 24
+7:JUMP0  Agr1: TempForm temp1 dir 1 24 Agr2: Lbl2
+8:ADD  Agr1: AddrForm i dir 1 0 Agr2: 1 Agr3: temp2:TempForm temp2 dir 1 25
+9:ADD  Agr1: AddrForm res dir 1 3 Agr2: temp2:TempForm temp2 dir 1 25 Agr3: temp3:TempForm temp3 dir 1 26
+10:ASSIGN  Agr1: AddrForm res dir 1 3 Agr2: temp3:TempForm temp3 dir 1 26
+11:ADD  Agr1: AddrForm i dir 1 0 Agr2: 1 Agr3: temp4:TempForm temp4 dir 1 27
+12:ASSIGN  Agr1: AddrForm i dir 1 0 Agr2: temp4:TempForm temp4 dir 1 27
+13:JUMP  Agr1: LabelForm Lbl1 indir 0 0
+14:Label  Agr1: LabelForm Lbl2 indir 0 0
+15:READC  Agr1: AddrForm res dir 1 3
+16:ENDPROC 

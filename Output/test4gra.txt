@@ -1,0 +1,262 @@
+Part2 : Grammar Analysis
+grammar endfile !
+Program
+	ProgramHead
+		PROGRAM program
+		ProgramName
+			ID p
+	DeclarePart
+		TypeDec
+			TypeDeclaration
+				TYPE type
+				TypeDecList
+					TypeId
+						ID i
+					EQ =
+					TypeName
+						BaseType
+							INTEGER integer
+					SEMI ;
+					TypeDecMore
+						TypeDecList
+							TypeId
+								ID sarray
+							EQ =
+							TypeName
+								StructureType
+									ArrayType
+										ARRAY array
+										LMIDPAREN [
+										Low
+											INTC 0
+										UNDERANGE ..
+										Top
+											INTC 5
+										RMIDPAREN ]
+										OF of
+										BaseType
+											INTEGER integer
+							SEMI ;
+							TypeDecMore
+		VarDec
+			VarDeclaration
+				VAR var
+				VarDecList
+					TypeName
+						ID i
+					VarIdList
+						ID x
+						VarIdMore
+					SEMI ;
+					VarDecMore
+						VarDecList
+							TypeName
+								ID sarray
+							VarIdList
+								ID y
+								VarIdMore
+							SEMI ;
+							VarDecMore
+								VarDecList
+									TypeName
+										BaseType
+											INTEGER integer
+									VarIdList
+										ID ss
+										VarIdMore
+									SEMI ;
+									VarDecMore
+		ProcDec
+			ProcDeclaration
+				PROCEDURE procedure
+				ProcName
+					ID sd
+				LPAREN (
+				ParamList
+					ParamDecList
+						Param
+							TypeName
+								BaseType
+									INTEGER integer
+							FormList
+								ID a
+								FidMore
+						ParamMore
+				RPAREN )
+				SEMI ;
+				ProcDecPart
+					DeclarePart
+						TypeDec
+						VarDec
+						ProcDec
+				ProcBody
+					ProgramBody
+						BEGIN begin
+						StmList
+							Stm
+								OutputStm
+									WRITE write
+									LPAREN (
+									Exp
+										Term
+											Factor
+												Variable
+													ID a
+													VariMore
+											OtherFactor
+										OtherTerm
+									RPAREN )
+							StmMore
+						END end
+				ProcDecMore
+	ProgramBody
+		BEGIN begin
+		StmList
+			Stm
+				ID ss
+				AssCall
+					AssignmentRest
+						VariMore
+						ASSIGN :=
+						Exp
+							Term
+								Factor
+									INTC 1
+								OtherFactor
+							OtherTerm
+			StmMore
+				SEMI ;
+				StmList
+					Stm
+						InputStm
+							READ read
+							LPAREN (
+							Invar
+								ID x
+							RPAREN )
+					StmMore
+						SEMI ;
+						StmList
+							Stm
+								LoopStm
+									WHILE while
+									RelExp
+										Exp
+											Term
+												Factor
+													Variable
+														ID ss
+														VariMore
+												OtherFactor
+											OtherTerm
+										OtherRelE
+											CmpOp
+												LT <
+											Exp
+												Term
+													Factor
+														INTC 6
+													OtherFactor
+												OtherTerm
+									DO do
+									StmList
+										Stm
+											ID y
+											AssCall
+												AssignmentRest
+													VariMore
+														LMIDPAREN [
+														Exp
+															Term
+																Factor
+																	Variable
+																		ID ss
+																		VariMore
+																OtherFactor
+															OtherTerm
+														RMIDPAREN ]
+													ASSIGN :=
+													Exp
+														Term
+															Factor
+																Variable
+																	ID ss
+																	VariMore
+															OtherFactor
+														OtherTerm
+										StmMore
+											SEMI ;
+											StmList
+												Stm
+													ID x
+													AssCall
+														AssignmentRest
+															VariMore
+															ASSIGN :=
+															Exp
+																Term
+																	Factor
+																		Variable
+																			ID y
+																			VariMore
+																				LMIDPAREN [
+																				Exp
+																					Term
+																						Factor
+																							Variable
+																								ID ss
+																								VariMore
+																						OtherFactor
+																					OtherTerm
+																				RMIDPAREN ]
+																	OtherFactor
+																OtherTerm
+												StmMore
+													SEMI ;
+													StmList
+														Stm
+															ID sd
+															AssCall
+																CallStmRest
+																	LPAREN (
+																	ActParamList
+																		Exp
+																			Term
+																				Factor
+																					Variable
+																						ID x
+																						VariMore
+																				OtherFactor
+																			OtherTerm
+																		ActParamMore
+																	RPAREN )
+														StmMore
+															SEMI ;
+															StmList
+																Stm
+																	ID ss
+																	AssCall
+																		AssignmentRest
+																			VariMore
+																			ASSIGN :=
+																			Exp
+																				Term
+																					Factor
+																						Variable
+																							ID ss
+																							VariMore
+																					OtherFactor
+																				OtherTerm
+																					AddOP
+																						PLUS +
+																					Exp
+																						Term
+																							Factor
+																								INTC 1
+																							OtherFactor
+																						OtherTerm
+																StmMore
+									ENDWH endwh
+							StmMore
+		END end
+	DOT .

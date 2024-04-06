@@ -1,0 +1,52 @@
+Part3 : Semantic Analysis
+Program Start
+Name:p  decKind:ProcDecK  TypeChoice:ProcKType  TokenLexType: ID  TokenStr:p
+ProcSymbolExtra  level:0  offset:0
+DeclarePart Start
+Name:i  decKind:TypeK  TypeChoice:INTEGER  TokenLexType: ID  TokenStr:i
+Array define correctly in line3
+Name:sarray  decKind:TypeK  TypeChoice:ArrayType  TokenLexType: ID  TokenStr:sarray
+Name:x  decKind:VarK  TypeChoice:INTEGER  TokenLexType: ID  TokenStr:x
+VarSymbolExtra : access:dir  level:1  offset:0
+Name:y  decKind:VarK  TypeChoice:ArrayType  TokenLexType: ID  TokenStr:y
+VarSymbolExtra : access:dir  level:1  offset:1
+Name:ss  decKind:VarK  TypeChoice:INTEGER  TokenLexType: ID  TokenStr:ss
+VarSymbolExtra : access:dir  level:1  offset:7
+FOR DEBUG: vardec part ended
+Name:sd  decKind:ProcDecK  TypeChoice:ProcKType  TokenLexType: ID  TokenStr:sd
+ProcSymbolExtra  level:1  offset:8
+进入自定义sd函数
+Name:a  decKind:VarK  TypeChoice:INTEGER  TokenLexType: ID  TokenStr:a
+VarSymbolExtra : access:dir  level:2  offset:0
+DEBUG: TAG: ParamList Ended
+检查自定义sd函数过程
+Program Begin
+OutputStm run correctly in line 9
+自定义sd函数检查完毕
+主程序运行语义检测开始
+Program Begin
+AssignStm run correctly in line 12
+AssignStm run correctly in line 13
+InputStm run correctly in line 14
+RelExpression run correctly in line 15
+Array access correctly in line 16
+AssignStm run correctly in line 16
+Array access correctly in line 17
+AssignStm run correctly in line 17
+CallStm run correctly in line 18
+AssignStm run correctly in line 19
+LoopStm run correctly in line 20
+主程序运行语义检测完毕
+Array define correctly in line3
+OutputStm run correctly in line 9
+AssignStm run correctly in line 12
+AssignStm run correctly in line 13
+InputStm run correctly in line 14
+RelExpression run correctly in line 15
+Array access correctly in line 16
+AssignStm run correctly in line 16
+Array access correctly in line 17
+AssignStm run correctly in line 17
+CallStm run correctly in line 18
+AssignStm run correctly in line 19
+LoopStm run correctly in line 20

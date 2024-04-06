@@ -1,0 +1,43 @@
+# Part5 : MIPS code generate!
+
+main:
+addiu $sp, $sp, -128
+sw $ra, 124($sp)
+sw $fp, 116($sp)
+addiu $fp, $sp, 0
+addi $at, $zero, 1
+sw $at, 0($sp)
+addi $v0, $zero, 5
+sw $v0, 8($sp)
+addi $v1, $zero, 1
+sw $v1, 12($sp)
+Lbl1:
+lw $a0, 0($sp)
+lw $a1, 8($sp)
+slt $a2, $a0, $a1
+sw $a2, 96($sp)
+lw $a2, 96($sp)
+beq $a2, $zero, Lbl2
+lw $a0, 0($sp)
+addi $t0, $zero, 1
+ADD $t1, $a0, $t0
+sw $t1, 100($sp)
+lw $t2, 12($sp)
+lw $t1, 100($sp)
+ADD $t3, $t2, $t1
+sw $t3, 104($sp)
+lw $t3, 104($sp)
+sw $t3, 12($sp)
+lw $a0, 0($sp)
+addi $t4, $zero, 1
+ADD $t5, $a0, $t4
+sw $t5, 108($sp)
+lw $t5, 108($sp)
+sw $t5, 0($sp)
+j Lbl1
+Lbl2:
+lw $t2, 12($sp)
+addiu $sp, $fp, 0
+lw $fp, 116($sp)
+addi $sp, $sp, 128
+nop

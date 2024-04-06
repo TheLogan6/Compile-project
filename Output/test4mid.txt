@@ -1,0 +1,29 @@
+Part4 : Mid code generate!
+Program
+Mid Code Program Begin
+PENTRY  Agr1: sd Agr2: SIZEOF  sd Agr3: 1
+WRITEC ARG1:a
+ENDPROC 
+Mid Code Program Begin
+MENTRY  Agr1: p Agr2: SIZEOF  p Agr3: 0
+ASSIGN  Agr1: ss Agr2: 1
+ASSIGN  Agr1: ss Agr2: x
+READC AGR1:x
+Label  Agr1: Lbl1
+LTC  Agr1: ss Agr2: 6 Agr3: temp1
+JUMP0  Agr1: temp1 Agr2: Lbl2
+SUB  Agr1: ss Agr2: 0 Agr3: temp2
+MULT  Agr1: temp2 Agr2: 1 Agr3: temp3
+AADD  Agr1: y Agr2: temp3 Agr3: temp4
+ASSIGN  Agr1: temp4 Agr2: ss
+SUB  Agr1: ss Agr2: 0 Agr3: temp5
+MULT  Agr1: temp5 Agr2: 1 Agr3: temp6
+AADD  Agr1: y Agr2: temp6 Agr3: temp7
+ASSIGN  Agr1: x Agr2: temp7
+VALACT  Agr1: x Agr2: 0 Agr3: 1
+CALL  Agr1: sd
+ADD  Agr1: ss Agr2: 1 Agr3: temp8
+ASSIGN  Agr1: ss Agr2: temp8
+JUMP  Agr1: Lbl1
+Label  Agr1: Lbl2
+ENDPROC 
