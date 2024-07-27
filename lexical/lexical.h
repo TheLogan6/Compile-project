@@ -24,7 +24,7 @@ extern Sem reservedWords[21];
 
 typedef LexType Terminal;
 
-enum StateType { s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13 };
+enum StateType { s0 = 0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13 };
 
 extern void initReservedWord();
 

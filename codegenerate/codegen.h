@@ -12,25 +12,51 @@ enum RegType{$zero = 0, $at, $v0, $v1, $a0,$a1,$a2,$a3, $t0,$t1,$t2,$t3,$t4,$t5,
 
 class Register{
 public:
-    Register(){}
-    Register(RegType r, bool u = false, Arg* t = nullptr):reg(r),used(u),target(t){};
     RegType reg;
     bool used;
     Arg* target;
+
+    Register(){}
+    Register(RegType r, bool u = false, Arg* t = nullptr):reg(r),used(u),target(t){};
+
 };
 
 class RegManagement{//寄存器管理器
 public:
+    Register regfile[31];
+    int lruqueue[24];  //0-23的位置 存储了 1-24号reg
+
     RegManagement(){
         for(int i = 0; i <= 31; i++){
             regfile[i] = Register(static_cast<RegType>(i), false, nullptr);
         }
         regfile[0].used = true;
+        for(int i = 0; i <= 23; i++){
+            lruqueue[i] = i+1; //t8是24号是t8， 尽量也别用
+        }
     };
-    Register regfile[31];
+
 
     string regtypeToString(RegType x);
     string allocateReg(Arg* arg,string stmType="Default");
+    void lruRecentUse(int use){
+        bool find = false;
+        int pos = -1;
+        for(int i = 0; i <= 23; i++){
+            if(lruqueue[i] == use){
+                find = true;
+                pos = i;
+                break;
+            }
+        }
+        if(find == false){
+            assert(false);
+        }
+        for(int i = pos; i < 23; i++){
+            lruqueue[i] = lruqueue[i+1];
+        }
+        lruqueue[23] = use;
+    }
 };
 
 
@@ -43,14 +69,15 @@ public:
             mipsCode.clear();
             curgenPro = nullptr;
     };
+
     vector<FourArgExp*> argExpList;
-    vector<SymbolTable*> scope;//scope栈其实就是声明链了
+    vector<SymbolTable*> scope;//scope栈就是类似声明链了
 
     vector<ActiveRecord*> actrecord; //声明栈
     vector<vector<ActiveRecord*>> callorder; //这是调用链，调用链也代表内存会出现的可能状况
     RegManagement regmmu;
 
-    int CurCallChainIndex = 0;
+//    int CurCallChainIndex = 0;
     vector<string> mipsCode;
     Symbol* curgenPro;
     ActiveRecord* curgenRecord;

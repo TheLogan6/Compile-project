@@ -12,13 +12,13 @@ extern Token tokenList[1010];
 int pointer = 0;
 GrammarTree* tree;
 
-#define LEXOPENFILEDIR "../Reference/lexicalinputtest.txt"
-#define LEXOUTPUTFILEDIR "../lexicaloutput.txt"
+#define LEXOPENFILEDIR "../Reference/test2.txt"
+#define LEXOUTPUTFILEDIR "../Output/lexicaloutput.txt"
 
-#define GRAOUTPUTFILEDIR "../grammaroutput.txt"
+#define GRAOUTPUTFILEDIR "../Output/grammaroutput2.txt"
 
 
-#define GRAMMARMAIN
+//#define GRAMMARMAIN
 #ifdef GRAMMARMAIN
 int main(){
     initReservedWord(); //初始化保留字
@@ -34,19 +34,23 @@ int main(){
     lexicalAnalyse(fp);
 //    printTokenList();
     TreeNode* t = program();
+    tree = new GrammarTree(0, t, t);
 
     cout << 1 << endl;  //奇怪的重定问题
 
     if (tokenList[pointer].wd.tok == ENDFILE) {
         cout << "success!" << endl;
     }
-//    dfsPrintTree(t,0);
-    printToPy(t, 0);
+    tree->dfsPrintTree(t,0);
+//    tree->printToPy(t, 0);
+//    cout << tree->now->name << endl;
+//    while(tree->preorderStep())
+//        cout << tree->now->name << endl;
     fclose(fp);
 }
 #endif
 
-void dfsPrintTree(TreeNode* p, int level){
+void GrammarTree::dfsPrintTree(TreeNode* p, int level){
     int tmp = level;
     while(tmp--)    cout << '\t';
     cout << p->name;
@@ -62,7 +66,7 @@ void dfsPrintTree(TreeNode* p, int level){
     return ;
 }
 
-void printToPy(TreeNode* p, int level){
+void GrammarTree::printToPy(TreeNode* p, int level){
     int tmp = level;
     while(tmp--)    cout << '\t';
     if(p->ifTermimal == "VT"){
@@ -83,9 +87,10 @@ void printToPy(TreeNode* p, int level){
 
 void grammarerror(int lineNo, string origin, string now){
     try {
-        throw SyntaxError(lineNo, origin, now);
-    }catch (const SyntaxError& e){
+        throw GrammarError(lineNo, origin, now);
+    }catch (const GrammarError& e){
         cout << e.what() << endl;
+        exit(1);
     }
 }
 
@@ -98,7 +103,7 @@ int getCurLine(int p){
 
 TreeNode* matchToken(LexType lex){
     if(getCurLex(pointer) == lex){
-        TreeNode* p = new TreeNode(enumToString(lex), &tokenList[pointer], "VT");
+        TreeNode* p = new TreeNode(enumToString(lex), &tokenList[pointer], "VT", nullptr, nullptr);
         pointer++;
         return p;
     }
@@ -110,14 +115,19 @@ TreeNode* matchToken(LexType lex){
 //1. Program -> ProgramHead DeclarePart ProgramBody .    PROGRAM
 TreeNode* program() { //开始程序！
     pointer = 0;
-    tree = new GrammarTree();
+//    tree = new GrammarTree();
     TreeNode* root = nullptr;
     if (getCurLex(pointer) == PROGRAM) {
-        root = new TreeNode("Program", nullptr, "VN");
-        root->addChild(programHead());
-        root->addChild(declarePart());
-        root->addChild(programBody());
-        root->addChild(matchToken(DOT));
+        root = new TreeNode("Program", nullptr, "VN", nullptr, nullptr);
+        TreeNode* ph = programHead();
+        TreeNode* dp = declarePart();
+        TreeNode* pb = programBody();
+        TreeNode* mDOT = matchToken(DOT);
+        root->addChild(ph);  //同时维护child和father
+        root->addChild(dp);
+        root->addChild(pb);
+        root->addChild(mDOT);
+        root->buildSib();
     }
     else {
         grammarerror(tokenList[pointer].line, "Program", enumToString(getCurLex(pointer)));
@@ -130,8 +140,11 @@ TreeNode* programHead() {
     TreeNode* t = nullptr;
     if (getCurLex(pointer) == PROGRAM) {
         t = new TreeNode("ProgramHead", nullptr, "VN");
-        t->addChild(matchToken(PROGRAM));
-        t->addChild(programName());
+        TreeNode* mPROGRAM = matchToken(PROGRAM);
+        TreeNode* pn = programName();
+        t->addChild(mPROGRAM);
+        t->addChild(pn);
+        t->buildSib();
     }
     else {
         grammarerror(getCurLine(pointer),"ProgramHead", enumToString(getCurLex(pointer)));
@@ -145,8 +158,11 @@ TreeNode* programName() {
     if (getCurLex(pointer) == ID) {
         t = new TreeNode("ProgramName", nullptr, "VN");
         t->addChild(matchToken(ID));
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer),"ProgramHead",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer),"ProgramHead",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -158,6 +174,7 @@ TreeNode* declarePart() {
         t->addChild(typeDec());
         t->addChild(varDec());
         t->addChild(procDec());
+        t->buildSib();
     }
     else {
         grammarerror(getCurLine(pointer),"DeclarePart",enumToString(getCurLex(pointer)));
@@ -175,8 +192,11 @@ TreeNode* typeDec() {
     else if (getCurLex(pointer) == TYPE) {
         t = new TreeNode("TypeDec", nullptr, "VN");
         t->addChild(typeDeclaration());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "TypeDec",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "TypeDec",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -188,8 +208,11 @@ TreeNode* typeDeclaration() {
         t = new TreeNode("TypeDeclaration", nullptr, "VN");
         t->addChild(matchToken(TYPE));
         t->addChild(typeDecList());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "TypeDeclaration",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "TypeDeclaration",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -203,8 +226,11 @@ TreeNode* typeDecList() {
         t->addChild(typeName());
         t->addChild(matchToken(SEMI));
         t->addChild(typeDecMore());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer),"TypeDecList",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer),"TypeDecList",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -218,8 +244,11 @@ TreeNode* typeDecMore() {
     else if (getCurLex(pointer) == ID) {
         t = new TreeNode("TypeDecMore", nullptr, "VN");
         t->addChild(typeDecList());
+        t->buildSib();  //应该是不起作用的
     }
-    else { grammarerror(getCurLine(pointer),"TypeDecMore",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer),"TypeDecMore",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -227,10 +256,13 @@ TreeNode* typeDecMore() {
 TreeNode* typeID() {
     TreeNode* t = nullptr;
     if (getCurLex(pointer) == ID) {
-        t = new TreeNode("TypeID", nullptr, "VN");
+        t = new TreeNode("TypeId", nullptr, "VN");
         t->addChild(matchToken(ID));
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer),"TypeID",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer),"TypeId",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -240,16 +272,21 @@ TreeNode* typeName() {
     if (getCurLex(pointer) == INTEGER || getCurLex(pointer) == CHAR) {
         t = new TreeNode("TypeName", nullptr, "VN");
         t->addChild(baseType());
+        t->buildSib();
     }
     else if (getCurLex(pointer) == ARRAY || getCurLex(pointer) == RECORD) {
         t = new TreeNode("TypeName", nullptr, "VN");
         t->addChild(structureType());
+        t->buildSib();
     }
     else if (getCurLex(pointer) == ID) {
         t = new TreeNode("TypeName", nullptr, "VN");
         t->addChild(matchToken(ID));
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "TypeName",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "TypeName",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -259,10 +296,12 @@ TreeNode* baseType() {
     if (getCurLex(pointer) == INTEGER) {
         t = new TreeNode("BaseType", nullptr, "VN");
         t->addChild(matchToken(INTEGER));
+        t->buildSib();
     }
     else if (getCurLex(pointer) == CHAR) {
         t = new TreeNode("BaseType", nullptr, "VN");
         t->addChild(matchToken(CHAR));
+        t->buildSib();
     }
     else {
         grammarerror(getCurLine(pointer),"BaseType",enumToString(getCurLex(pointer)));
@@ -276,10 +315,12 @@ TreeNode* structureType() {
     if (getCurLex(pointer) == ARRAY) {
         t = new TreeNode("StructureType", nullptr, "VN");
         t->addChild(arrayType());
+        t->buildSib();
     }
     else if (getCurLex(pointer) == RECORD) {
         t = new TreeNode("StructureType", nullptr, "VN");
         t->addChild(recType());
+        t->buildSib();
     }
     else {
         grammarerror(getCurLine(pointer),"StructureType",enumToString(getCurLex(pointer)));
@@ -300,6 +341,7 @@ TreeNode* arrayType() {
         t->addChild(matchToken(RMIDPAREN));
         t->addChild(matchToken(OF));
         t->addChild(baseType());
+        t->buildSib();
     }
     else {
         grammarerror(getCurLine(pointer),"ArrayType",enumToString(getCurLex(pointer)));
@@ -314,6 +356,7 @@ TreeNode* low() {
     if (getCurLex(pointer) == INTC) {
         t = new TreeNode("Low", nullptr, "VN");
         t->addChild(matchToken(INTC));
+        t->buildSib();
     }
     else {
         grammarerror(getCurLine(pointer),"Low",enumToString(getCurLex(pointer)));
@@ -327,6 +370,7 @@ TreeNode* top() {
     if (getCurLex(pointer) == INTC) {
         t = new TreeNode("Top", nullptr, "VN");
         t->addChild(matchToken(INTC));
+        t->buildSib();
     }
     else {
         grammarerror(getCurLine(pointer),"Top",enumToString(getCurLex(pointer)));
@@ -341,9 +385,12 @@ TreeNode* recType() {
         t = new TreeNode("RecType", nullptr, "VN");
         t->addChild(matchToken(RECORD));
         t->addChild(fieldDecList());
-        t->addChild(matchToken(END1));
+        t->addChild(matchToken(END));
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer),"RecType",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer),"RecType",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -356,6 +403,7 @@ TreeNode* fieldDecList() {
         t->addChild(IDList());
         t->addChild(matchToken(SEMI));
         t->addChild(fieldDecMore());
+        t->buildSib();
     }
     else if (getCurLex(pointer) == ARRAY) {
         t = new TreeNode("FieldDecList", nullptr, "VN");
@@ -363,22 +411,28 @@ TreeNode* fieldDecList() {
         t->addChild(IDList());
         t->addChild(matchToken(SEMI));
         t->addChild(fieldDecMore());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer),"FieldDecList",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer),"FieldDecList",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
 //25. FieldDecMore -> ε | FieldDecList
 TreeNode* fieldDecMore() {
     TreeNode* t = nullptr;
-    if (getCurLex(pointer) == END1) {
+    if (getCurLex(pointer) == END) {
         t = new TreeNode("FieldDecMore", nullptr, "VN");
     }
     else if (getCurLex(pointer) == INTEGER || getCurLex(pointer) == CHAR || getCurLex(pointer) == ARRAY) {
         t = new TreeNode("FieldDecMore", nullptr, "VN");
         t->addChild(fieldDecList());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer),"FieldDecMore",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer),"FieldDecMore",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -389,23 +443,29 @@ TreeNode* IDList() {
         t = new TreeNode("IDList", nullptr, "VN");
         t->addChild(matchToken(ID));
         t->addChild(IDMore());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "IDList",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "IDList",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
 //28.IdMore -> ε | , IdList
 TreeNode* IDMore() {
     TreeNode* t = nullptr;
-    if (getCurLex(pointer) == SEMI) {
+    if (getCurLex(pointer) == SEMI) { //;
         t = new TreeNode("IDMore", nullptr, "VN");
     }
     else if (getCurLex(pointer) == COMMA) {
         t = new TreeNode("IDMore", nullptr, "VN");
         t->addChild(matchToken(COMMA));
         t->addChild(IDList());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "IDMore",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "IDMore",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -418,8 +478,11 @@ TreeNode* varDec() {
     else if (getCurLex(pointer) == VAR) {
         t = new TreeNode("VarDec", nullptr, "VN");
         t->addChild(varDeclaration());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "VarDec",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "VarDec",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -430,23 +493,30 @@ TreeNode* varDeclaration() {
         t = new TreeNode("VarDeclaration", nullptr, "VN");
         t->addChild(matchToken(VAR));
         t->addChild(varDecList());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "VarDeclaration",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "VarDeclaration",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
 //33.VarDecList -> TypeName VarIdList ; VarDecMore
 TreeNode* varDecList() {
     TreeNode* t = nullptr;
-    if (getCurLex(pointer) == INTEGER || getCurLex(pointer) == CHAR || getCurLex(pointer) == ARRAY ||
+    if (getCurLex(pointer) == INTEGER || getCurLex(pointer) == CHAR || getCurLex(pointer) == ARRAY || \
         getCurLex(pointer) == RECORD || getCurLex(pointer) == ID) {
         t = new TreeNode("VarDecList", nullptr, "VN");
         t->addChild(typeName());
         t->addChild(varIDList());
         t->addChild(matchToken(SEMI));
         t->addChild(varDecMore());
+
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "VarDecList",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "VarDecList",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -460,8 +530,11 @@ TreeNode* varDecMore() {
              getCurLex(pointer) == RECORD || getCurLex(pointer) == ID) {
         t = new TreeNode("VarDecMore", nullptr, "VN");
         t->addChild(varDecList());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "VarDecMore",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "VarDecMore",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -469,11 +542,15 @@ TreeNode* varDecMore() {
 TreeNode* varIDList() {
     TreeNode* t = nullptr;
     if (getCurLex(pointer) == ID) {
-        t = new TreeNode("VarIDList", nullptr, "VN");
+        t = new TreeNode("VarIdList", nullptr, "VN");
         t->addChild(matchToken(ID));
         t->addChild(varIDMore());
+
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "VarIDList",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "VarIdList",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -481,14 +558,17 @@ TreeNode* varIDList() {
 TreeNode* varIDMore() {
     TreeNode* t = nullptr;
     if (getCurLex(pointer) == SEMI) {
-        t = new TreeNode("VarIDMore", nullptr, "VN");
+        t = new TreeNode("VarIdMore", nullptr, "VN");
     }
     else if (getCurLex(pointer) == COMMA) {
-        t = new TreeNode("VarIDMore", nullptr, "VN");
+        t = new TreeNode("VarIdMore", nullptr, "VN");
         t->addChild(matchToken(COMMA));
         t->addChild(varIDList());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "VarIDMore",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "VarIdMore",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -501,13 +581,16 @@ TreeNode* procDec() {
     else if (getCurLex(pointer) == PROCEDURE) {
         t = new TreeNode("ProcDec", nullptr, "VN");
         t->addChild(procDeclaration());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "ProcDec",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "ProcDec",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
 //41.ProcDeclaration -> PROCEDURE ProcName ( ParamList ) ; ProcDecPart ProcBody ProcDecMore
-//procDecMore 和 procDec完全相同
+//procDecMore 和 procDec 完全相同
 TreeNode* procDeclaration() {
     TreeNode* t = nullptr;
     if (getCurLex(pointer) == PROCEDURE) {
@@ -520,14 +603,32 @@ TreeNode* procDeclaration() {
         t->addChild(matchToken(SEMI));
         t->addChild(procDecPart());
         t->addChild(procBody());
-        t->addChild(procDec());
+        t->addChild(procDecMore());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "ProcDeclaration",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "ProcDeclaration",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
 //42.ProcDecMore ->	ε  | ProcDeclaration
-//由于procDecMore 和 procDecPart完全相同 直接代替
+//procDecMore 和 procDec 完全相同
+TreeNode* procDecMore(){
+    TreeNode* t = nullptr;
+    if (getCurLex(pointer) == BEGIN) {
+        t = new TreeNode("ProcDecMore", nullptr, "VN");
+    }
+    else if (getCurLex(pointer) == PROCEDURE) {
+        t = new TreeNode("ProcDecMore", nullptr, "VN");
+        t->addChild(procDeclaration());
+        t->buildSib();
+    }
+    else {
+        grammarerror(getCurLine(pointer), "ProcDec",enumToString(getCurLex(pointer)));
+    }
+    return t;
+}
 
 
 //44. ProcName -> ID
@@ -536,8 +637,11 @@ TreeNode* procName() {
     if (getCurLex(pointer) == ID) {
         t = new TreeNode("ProcName", nullptr, "VN");
         t->addChild(matchToken(ID));
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "ProcName",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "ProcName",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -551,8 +655,11 @@ TreeNode* paramList() {
              getCurLex(pointer) == RECORD || getCurLex(pointer) == ID || getCurLex(pointer) == VAR) {
         t = new TreeNode("ParamList", nullptr, "VN");
         t->addChild(paramDecList());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "ParamList",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "ParamList",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -564,8 +671,11 @@ TreeNode* paramDecList() {
         t = new TreeNode("ParamDecList", nullptr, "VN");
         t->addChild(param());
         t->addChild(paramMore());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "ParamDecList",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "ParamDecList",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -579,8 +689,11 @@ TreeNode* paramMore() {
         t = new TreeNode("ParamMore", nullptr, "VN");
         t->addChild(matchToken(SEMI));
         t->addChild(paramDecList());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "ParamMore",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "ParamMore",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -592,14 +705,18 @@ TreeNode* param() {
         t = new TreeNode("Param", nullptr, "VN");
         t->addChild(typeName());
         t->addChild(formList());
+        t->buildSib();
     }
     else if (getCurLex(pointer) == VAR) {
         t = new TreeNode("Param", nullptr, "VN");
         t->addChild(matchToken(VAR));
         t->addChild(typeName());
         t->addChild(formList());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "Param",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "Param",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -610,8 +727,11 @@ TreeNode* formList() {
         t = new TreeNode("FormList", nullptr, "VN");
         t->addChild(matchToken(ID));
         t->addChild(fidMore());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "FormList",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "FormList",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -625,8 +745,11 @@ TreeNode* fidMore() {
         t = new TreeNode("FidMore", nullptr, "VN");
         t->addChild(matchToken(COMMA));
         t->addChild(formList());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "FidMore",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "FidMore",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -636,10 +759,13 @@ TreeNode* procDecPart() {
     TreeNode* t = nullptr;
     if (getCurLex(pointer) == TYPE || getCurLex(pointer) == VAR || getCurLex(pointer) == PROCEDURE ||
         getCurLex(pointer) == BEGIN) {
-        t = new TreeNode("ProDecPart", nullptr, "VN");
+        t = new TreeNode("ProcDecPart", nullptr, "VN");
         t->addChild(declarePart());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "ProDecPart",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "ProcDecPart",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -650,8 +776,11 @@ TreeNode* procBody() {
     if (getCurLex(pointer) == BEGIN) {
         t = new TreeNode("ProcBody", nullptr, "VN");
         t->addChild(programBody());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "ProcBody",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "ProcBody",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -662,9 +791,12 @@ TreeNode* programBody() {
         t = new TreeNode("ProgramBody", nullptr, "VN");
         t->addChild(matchToken(BEGIN));
         t->addChild(stmList());
-        t->addChild(matchToken(END1));
+        t->addChild(matchToken(END));
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "ProgramBody",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "ProgramBody",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -672,19 +804,22 @@ TreeNode* programBody() {
 TreeNode* stmList() {
     TreeNode* t = nullptr;
     if (getCurLex(pointer) == ID || getCurLex(pointer) == IF || getCurLex(pointer) == WHILE ||
-        getCurLex(pointer) == RETURN1 || getCurLex(pointer) == READ || getCurLex(pointer) == WRITE) {
+        getCurLex(pointer) == RETURN || getCurLex(pointer) == READ || getCurLex(pointer) == WRITE) {
         t = new TreeNode("StmList", nullptr, "VN");
         t->addChild(stm());
         t->addChild(stmMore());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "StmList",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "StmList",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
 //59. StmMore -> ε | ; StmList
 TreeNode* stmMore() {
     TreeNode* t = nullptr;
-    if (getCurLex(pointer) == ELSE || getCurLex(pointer) == FI || getCurLex(pointer) == END1 ||
+    if (getCurLex(pointer) == ELSE || getCurLex(pointer) == FI || getCurLex(pointer) == END ||
         getCurLex(pointer) == ENDWH) {
         t = new TreeNode("StmMore", nullptr, "VN");
     }
@@ -692,8 +827,11 @@ TreeNode* stmMore() {
         t = new TreeNode("StmMore", nullptr, "VN");
         t->addChild(matchToken(SEMI));
         t->addChild(stmList());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "StmMore",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "StmMore",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -703,29 +841,37 @@ TreeNode* stm() {
     if (getCurLex(pointer) == IF) {
         t = new TreeNode("Stm", nullptr, "VN");
         t->addChild(conditionalStm());
+        t->buildSib();
     }
     else if (getCurLex(pointer) == WHILE) {
         t = new TreeNode("Stm", nullptr, "VN");
         t->addChild(loopStm());
+        t->buildSib();
     }
     else if (getCurLex(pointer) == READ) {
         t = new TreeNode("Stm", nullptr, "VN");
         t->addChild(inputStm());
+        t->buildSib();
     }
     else if (getCurLex(pointer) == WRITE) {
         t = new TreeNode("Stm", nullptr, "VN");
         t->addChild(outputStm());
+        t->buildSib();
     }
-    else if (getCurLex(pointer) == RETURN1) {
+    else if (getCurLex(pointer) == RETURN) {
         t = new TreeNode("Stm", nullptr, "VN");
         t->addChild(returnStm());
+        t->buildSib();
     }
     else if (getCurLex(pointer) == ID) {
         t = new TreeNode("Stm", nullptr, "VN");
         t->addChild(matchToken(ID));
         t->addChild(assCall());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "Stm",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "Stm",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -736,12 +882,16 @@ TreeNode* assCall() {
         || getCurLex(pointer) == DOT) {
         t = new TreeNode("AssCall", nullptr, "VN");
         t->addChild(assignmentRest());
+        t->buildSib();
     }
     else if (getCurLex(pointer) == LPAREN) {
         t = new TreeNode("AssCall", nullptr, "VN");
         t->addChild(callStmRest());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "AssCall",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "AssCall",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -753,8 +903,11 @@ TreeNode* assignmentRest() {
         t->addChild(variMore());
         t->addChild(matchToken(ASSIGN));
         t->addChild(exp());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "AssignmentRest",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "AssignmentRest",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -770,8 +923,11 @@ TreeNode* conditionalStm() {
         t->addChild(matchToken(ELSE));
         t->addChild(stmList());
         t->addChild(matchToken(FI));
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "ConditionalStm",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "ConditionalStm",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -785,8 +941,11 @@ TreeNode* loopStm() {
         t->addChild(matchToken(DO));
         t->addChild(stmList());
         t->addChild(matchToken(ENDWH));
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "LoopStm",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "LoopStm",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -799,8 +958,11 @@ TreeNode* inputStm() {
         t->addChild(matchToken(LPAREN));
         t->addChild(inVar());
         t->addChild(matchToken(RPAREN));
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "InputStm",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "InputStm",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -808,10 +970,13 @@ TreeNode* inputStm() {
 TreeNode* inVar() {
     TreeNode* t = nullptr;
     if (getCurLex(pointer) == ID) {
-        t = new TreeNode("InVar", nullptr, "VN");
+        t = new TreeNode("Invar", nullptr, "VN");
         t->addChild(matchToken(ID));
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "InVar",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "Invar",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -824,19 +989,25 @@ TreeNode* outputStm() {
         t->addChild(matchToken(LPAREN));
         t->addChild(exp());
         t->addChild(matchToken(RPAREN));
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "OutputStm",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "OutputStm",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
-//75. ReturnStm -> RETURN ( Exp )
+//75. ReturnStm -> RETURN ( Exp ) ？？？
 TreeNode* returnStm() {
     TreeNode* t = nullptr;
-    if (getCurLex(pointer) == RETURN1) {
+    if (getCurLex(pointer) == RETURN) {
         t = new TreeNode("ReturnStm", nullptr, "VN");
-        t->addChild(matchToken(RETURN1));
+        t->addChild(matchToken(RETURN));
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "ReturnStm",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "ReturnStm",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -848,8 +1019,11 @@ TreeNode* callStmRest() {
         t->addChild(matchToken(LPAREN));
         t->addChild(actparamList());
         t->addChild(matchToken(RPAREN));
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "CallStmRest",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "CallStmRest",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -857,14 +1031,17 @@ TreeNode* callStmRest() {
 TreeNode* actparamList() {
     TreeNode* t = nullptr;
     if (getCurLex(pointer) == RPAREN) {
-        t = new TreeNode("ActparamList", nullptr, "VN");
+        t = new TreeNode("ActParamList", nullptr, "VN");
     }
     else if (getCurLex(pointer) == LPAREN || getCurLex(pointer) == INTC || getCurLex(pointer) == ID) {
-        t = new TreeNode("ActparamList", nullptr, "VN");
+        t = new TreeNode("ActParamList", nullptr, "VN");
         t->addChild(exp());
         t->addChild(actparamMore());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "ActparamList",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "ActParamList",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -872,14 +1049,17 @@ TreeNode* actparamList() {
 TreeNode* actparamMore() {
     TreeNode* t = nullptr;
     if (getCurLex(pointer) == RPAREN) {
-        t = new TreeNode("ActparamMore", nullptr, "VN");
+        t = new TreeNode("ActParamMore", nullptr, "VN");
     }
     else if (getCurLex(pointer) == COMMA) {
-        t = new TreeNode("ActparamMore", nullptr, "VN");
+        t = new TreeNode("ActParamMore", nullptr, "VN");
         t->addChild(matchToken(COMMA));
         t->addChild(actparamList());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "ActparamMore",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "ActParamMore",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -890,8 +1070,11 @@ TreeNode* relExp() {
         t = new TreeNode("RelExp", nullptr, "VN");
         t->addChild(exp());
         t->addChild(otherRelE());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "RelExp",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "RelExp",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -902,8 +1085,11 @@ TreeNode* otherRelE() {
         t = new TreeNode("OtherRelE", nullptr, "VN");
         t->addChild(cmpOp());
         t->addChild(exp());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "OtherRelE",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "OtherRelE",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -914,8 +1100,11 @@ TreeNode* exp() {
         t = new TreeNode("Exp", nullptr, "VN");
         t->addChild(term());
         t->addChild(otherTerm());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "Exp",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "Exp",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -926,15 +1115,18 @@ TreeNode* otherTerm() {
     if (getCurLex(pointer) == LT || getCurLex(pointer) == EQ || getCurLex(pointer) == RMIDPAREN ||
         getCurLex(pointer) == THEN || getCurLex(pointer) == ELSE || getCurLex(pointer) == FI ||
         getCurLex(pointer) == DO || getCurLex(pointer) == ENDWH || getCurLex(pointer) == RPAREN ||
-        getCurLex(pointer) == END1 || getCurLex(pointer) == SEMI || getCurLex(pointer) == COMMA) {
+        getCurLex(pointer) == END || getCurLex(pointer) == SEMI || getCurLex(pointer) == COMMA) {
         t = new TreeNode("OtherTerm", nullptr, "VN");
     }
     else if (getCurLex(pointer) == PLUS || getCurLex(pointer) == MINUS) {
         t = new TreeNode("OtherTerm", nullptr, "VN");
         t->addChild(addOp());
         t->addChild(exp());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "OtherTerm",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "OtherTerm",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -945,8 +1137,11 @@ TreeNode* term() {
         t = new TreeNode("Term", nullptr, "VN");
         t->addChild(factor());
         t->addChild(otherFactor());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "Term",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "Term",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -956,7 +1151,7 @@ TreeNode* otherFactor() {
     if (getCurLex(pointer) == PLUS || getCurLex(pointer) == MINUS || getCurLex(pointer) == LT ||
         getCurLex(pointer) == EQ || getCurLex(pointer) == RMIDPAREN || getCurLex(pointer) == THEN ||
         getCurLex(pointer) == ELSE || getCurLex(pointer) == FI || getCurLex(pointer) == DO ||
-        getCurLex(pointer) == ENDWH || getCurLex(pointer) == RPAREN || getCurLex(pointer) == END1 ||
+        getCurLex(pointer) == ENDWH || getCurLex(pointer) == RPAREN || getCurLex(pointer) == END ||
         getCurLex(pointer) == SEMI || getCurLex(pointer) == COMMA) {
         t = new TreeNode("OtherFactor", nullptr, "VN");
     }
@@ -964,8 +1159,11 @@ TreeNode* otherFactor() {
         t = new TreeNode("OtherFactor", nullptr, "VN");
         t->addChild(multOp());
         t->addChild(term());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "OtherFactor",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "OtherFactor",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -977,16 +1175,21 @@ TreeNode* factor() {
         t->addChild(matchToken(LPAREN));
         t->addChild(exp());
         t->addChild(matchToken(RPAREN));
+        t->buildSib();
     }
     else if (getCurLex(pointer) == INTC) {
         t = new TreeNode("Factor", nullptr, "VN");
         t->addChild(matchToken(INTC));
+        t->buildSib();
     }
     else if (getCurLex(pointer) == ID) {
         t = new TreeNode("Factor", nullptr, "VN");
         t->addChild(variable());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "Factor",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "Factor",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -997,8 +1200,11 @@ TreeNode* variable() {
         t = new TreeNode("Variable", nullptr, "VN");
         t->addChild(matchToken(ID));
         t->addChild(variMore());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "Variable",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "Variable",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -1009,7 +1215,7 @@ TreeNode* variMore() {
         getCurLex(pointer) == PLUS || getCurLex(pointer) == MINUS || getCurLex(pointer) == LT ||
         getCurLex(pointer) == EQ || getCurLex(pointer) == THEN || getCurLex(pointer) == ELSE ||
         getCurLex(pointer) == FI || getCurLex(pointer) == DO || getCurLex(pointer) == ENDWH ||
-        getCurLex(pointer) == RPAREN || getCurLex(pointer) == END1 || getCurLex(pointer) == SEMI ||
+        getCurLex(pointer) == RPAREN || getCurLex(pointer) == END || getCurLex(pointer) == SEMI ||
         getCurLex(pointer) == COMMA || getCurLex(pointer) == RMIDPAREN) {
         t = new TreeNode("VariMore", nullptr, "VN");
 
@@ -1019,13 +1225,17 @@ TreeNode* variMore() {
         t->addChild(matchToken(LMIDPAREN));
         t->addChild(exp());
         t->addChild(matchToken(RMIDPAREN));
+        t->buildSib();
     }
     else if (getCurLex(pointer) == DOT) {
         t = new TreeNode("VariMore", nullptr, "VN");
         t->addChild(matchToken(DOT));
         t->addChild(fieldVar());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "VariMore",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "VariMore",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -1036,8 +1246,11 @@ TreeNode* fieldVar() {
         t = new TreeNode("FieldVar", nullptr, "VN");
         t->addChild(matchToken(ID));
         t->addChild(fieldVarMore());
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "FieldVar",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "FieldVar",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -1048,7 +1261,7 @@ TreeNode* fieldVarMore() {
         getCurLex(pointer) == PLUS || getCurLex(pointer) == MINUS || getCurLex(pointer) == LT ||
         getCurLex(pointer) == EQ || getCurLex(pointer) == THEN || getCurLex(pointer) == ELSE ||
         getCurLex(pointer) == FI || getCurLex(pointer) == DO || getCurLex(pointer) == ENDWH ||
-        getCurLex(pointer) == RPAREN || getCurLex(pointer) == END1 || getCurLex(pointer) == SEMI ||
+        getCurLex(pointer) == RPAREN || getCurLex(pointer) == END || getCurLex(pointer) == SEMI ||
         getCurLex(pointer) == COMMA) {
         t = new TreeNode("FieldVarMore", nullptr, "VN");
     }
@@ -1057,8 +1270,11 @@ TreeNode* fieldVarMore() {
         t->addChild(matchToken(LMIDPAREN));
         t->addChild(exp());
         t->addChild(matchToken(RMIDPAREN));
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "FieldVarMore",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "FieldVarMore",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -1067,28 +1283,36 @@ TreeNode* fieldVarMore() {
 TreeNode* cmpOp() {
     TreeNode* t = nullptr;
     if (getCurLex(pointer) == LT) {
-        t = new TreeNode("CmpOP", nullptr, "VN");
+        t = new TreeNode("CmpOp", nullptr, "VN");
         t->addChild(matchToken(LT));
+        t->buildSib();
     }
     else if (getCurLex(pointer) == EQ) {
-        t = new TreeNode("CmpOP", nullptr, "VN");
+        t = new TreeNode("CmpOp", nullptr, "VN");
         t->addChild(matchToken(EQ));
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "CmpOP",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "CmpOp",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 //101. AddOp -> + | -
 TreeNode* addOp() {
     TreeNode* t = nullptr;
     if (getCurLex(pointer) == PLUS) {
-        t = new TreeNode("AddOP", nullptr, "VN");
+        t = new TreeNode("AddOp", nullptr, "VN");
         t->addChild(matchToken(PLUS));
+        t->buildSib();
     }
     else if (getCurLex(pointer) == MINUS) {
-        t = new TreeNode("AddOP", nullptr, "VN");
+        t = new TreeNode("AddOp", nullptr, "VN");
         t->addChild(matchToken(MINUS));
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "AddOP",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "AddOp",enumToString(getCurLex(pointer)));
+    }
     return t;
 }
 
@@ -1096,13 +1320,17 @@ TreeNode* addOp() {
 TreeNode* multOp() {
     TreeNode* t = nullptr;
     if (getCurLex(pointer) == TIMES) {
-        t = new TreeNode("MultOP", nullptr, "VN");
+        t = new TreeNode("MultOp", nullptr, "VN");
         t->addChild(matchToken(TIMES));
+        t->buildSib();
     }
     else if (getCurLex(pointer) == OVER) {
-        t = new TreeNode("MultOP", nullptr, "VN");
+        t = new TreeNode("MultOp", nullptr, "VN");
         t->addChild(matchToken(OVER));
+        t->buildSib();
     }
-    else { grammarerror(getCurLine(pointer), "MultOP",enumToString(getCurLex(pointer))); }
+    else {
+        grammarerror(getCurLine(pointer), "MultOP",enumToString(getCurLex(pointer)));
+    }
     return t;
 }

@@ -1,0 +1,21 @@
+program program2
+type t1 = integer;
+    t2 = char;
+var integer test1, test2;
+    char ch;
+procedure proc (integer param1);
+    var integer param2;
+        char param3;
+begin
+    param2 := 10
+end
+begin
+    read(test1);
+    test1 := test1+10;
+    write(test1);
+    proc(0)
+end .
+
+
+
+

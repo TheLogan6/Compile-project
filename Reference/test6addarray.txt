@@ -1,0 +1,11 @@
+program addall{非函数调用，简单程序}
+var integer i,j,num,res;
+array[0..10] of integer a;
+begin
+    i := 1;
+    num := 9;
+    while i<num do
+        a[i] := i*i;
+        i:=i+1
+    endwh
+end.

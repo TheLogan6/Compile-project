@@ -37,8 +37,8 @@ enum LexType
     /* 保留字 */
     PROGRAM, PROCEDURE, TYPE,   VAR, IF,
     THEN,   ELSE,       FI,     WHILE, DO,
-    ENDWH, BEGIN,       END1,   READ , WRITE,
-    ARRAY, OF,  RECORD, RETURN1,
+    ENDWH, BEGIN,       END,   READ , WRITE,
+    ARRAY, OF,  RECORD, RETURN,
 
     INTEGER, CHAR,
     /* 多字符单词符号 */
@@ -49,29 +49,11 @@ enum LexType
     COLON, SEMI, COMMA, LMIDPAREN, RMIDPAREN,
     UNDERANGE
 };
+typedef enum {ArrayK,CharK,IntegerK,RecordK,IdK}  DecKind;
+typedef enum {IfK,WhileK,AssignK,ReadK,WriteK,CallK,ReturnK} StmtKind;
+typedef enum {OpK,ConstK,VariK} ExpKind;           //表达式类型分为操作符类型：a+b 常整数类型：6 变量类型：a
+typedef enum {IdV,ArrayMembV,FieldMembV} VarKind; //标识符变量 数组成员变量 域成员变量
+typedef enum {Void,Integer,Boolean} ExpType;      //表达式整个节点的检查类型（为语义分析判别打基础
+typedef enum {none,varparamType,valparamType} ParamType;  //参数类型，val和var
 
 
-enum IdKind
-{
-    typeKind,
-    varKind,
-    procKind
-}; //标识符的类型
-
-enum TypeKind{
-    intTy,
-    charTy,
-    arrayTy,
-    recordTy,
-    boolTy
-};  //内部类型
-
-enum AccessKind
-{
-    dir,
-    indir
-}; //变量的类别。dir表直接变量(值参)，indir表示间接变量(变参)
-
-
-
-extern jmp_buf jump_buffer;

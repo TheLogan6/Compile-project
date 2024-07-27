@@ -3,11 +3,13 @@
 #include <string>
 #include <cstring>
 #include <vector>
-#include <setjmp.h>
 #include <sstream>
-#include <stdexcept>
+//#include <stdexcept>
+//#include <stack>
+#include <assert.h>
 #include "lexical.h"
 #include "global.h"
+#include "semantic.h"
 
 using namespace std;
 
@@ -17,11 +19,15 @@ class TreeNode
 public:
     Token* tk;
     vector<TreeNode*> child;
-    vector<TreeNode*> sibiling;
-    string ifTermimal;
-    string name;          //节点表示的终极符、非终极符
+    TreeNode* father;
+    TreeNode* sibiling;
+    string ifTermimal;//节点表示的终极符、非终极符
+    string name;
+    Symbol* semantic;
 
-    TreeNode(string nm, Token* t = nullptr, string ter = "VN")
+
+    //    string nodeKind;
+    TreeNode(string nm, Token* t = nullptr, string ter = "VN", TreeNode* fa = nullptr, TreeNode* si = nullptr)
     {
         name = nm;
         ifTermimal = ter;
@@ -34,34 +40,87 @@ public:
             tk = t;
         }
         child.clear();
-        sibiling.clear();
         child.resize(0);
-        sibiling.resize(0);
+        father = fa;
+        sibiling = si;
+        semantic = nullptr;
+//        nodeKind = "";
+    }
+
+    string getNodeKind(){
+        if(tk == nullptr){
+            assert(ifTermimal == "VN"); //非终极符
+            assert(false);
+            return this->name;
+        }
+        else
+            return enumToString(this->tk->wd.tok); //LexType就代表了非终极符的类型
     }
 
     void addChild(TreeNode* t) {
         child.push_back(t);
+        t->father = this;
     }
+
+    void buildSib(){ //childnum > 2
+        int n = this->child.size();
+        if(n == 0) return;
+        for(int i = 0; i < n-1; i++){
+            child[i]->sibiling = child[i+1];
+        }
+    }
+
 
     bool ifNoChild(){
         return child.size() == 0;
+    }
+
+    void buildFather(TreeNode* fa){
+        this->father = fa;
     }
 };
 
 class GrammarTree{
 public:
-
     int nodeNum;
     TreeNode* root;
     TreeNode* now;
+    vector<TreeNode*> preorder;
+    int ptr;
 
     GrammarTree(int x = 0, TreeNode* ro = nullptr, TreeNode* no = nullptr):nodeNum(x),root(ro),now(no){}
 
     TreeNode* goRoot(){
+        now = root;
         return this->root;
     }
     TreeNode* getNowNode(){
         return this->now;
+    }
+    void dfsPrintTree(TreeNode* p, int level);
+    void printToPy(TreeNode* p, int level);
+    bool preorderStep(){
+        if(now == nullptr)
+            return false;
+        if(!now->child.empty()){
+            now = now->child[0];
+            return true;
+        }
+        while(now->father && now->sibiling == nullptr)
+        {
+            now = now->father;
+        }
+        if(now->sibiling){
+            now = now->sibiling;
+            return true;
+        }
+        return false;
+    }
+    void stepIn(string terminal){
+        while(now->name != terminal)
+        {
+            this->preorderStep();
+        }
     }
 };
 
@@ -156,6 +215,7 @@ extern TreeNode* procDeclaration();
 
 //42.ProcDecMore ->	ε  | ProcDeclaration
 //ProcDecMore 等价于  procDec 了
+extern TreeNode* procDecMore();
 
 //44. ProcName -> ID
 extern TreeNode* procName();
@@ -216,7 +276,7 @@ extern TreeNode* inVar();
 //74. OutputStm -> WRITE ( Exp )
 extern TreeNode* outputStm();
 
-//75. ReturnStm -> RETURN ( Exp )
+//75. ReturnStm -> RETURN ( Exp )   过程似乎有一点问题
 extern TreeNode* returnStm();
 
 //76. CallStmRest -> ( ActParamList )

@@ -13,17 +13,17 @@ using namespace std;
 extern Token tokenList[1010];
 extern int pointer; //treepointer
 extern GrammarTree* tree;
+#define SEMANTICDEBUG 1
+#define ERROREXIT 0 //理论上是需要打开的，一遇错误直接退出版本
+//#define GRAMMARMAIN
+//#define SEMANTICMAIN
 
-
+#ifdef SEMANTICMAIN
 #define LEXOPENFILEDIR "../Reference/test4.txt"
 #define LEXOUTPUTFILEDIR "../Output/lexicaloutput.txt"
 
 #define GRAOUTPUTFILEDIR "../Output/test4gra.txt"
 #define SEMANOUTPUTFILEDIR "../Output/test4semantic.txt"
-
-//#define GRAMMARMAIN
-//#define SEMANTICMAIN
-#ifdef SEMANTICMAIN
 int main(){
     initReservedWord(); //初始化保留字
     FILE *fp;
@@ -63,30 +63,14 @@ int main(){
 #endif
 
 
-string nodeKindToString(NodeKind x){
-    switch (x) {
-        case ProK:  return "ProK";
-        case PheadK: return "PheadK";
-        case TypeK: return "TypeK";
-        case VarK:   return "VarK";
-        case ProcDecK:  return "ProcDecK";
-        case StmLK: return "StmLK";
-        case DecK:  return "DecK";
-        case StmtK: return "StmtK";
-        case ExpK: return "ExpK";
-        default:
-            assert(false);
-            return "Unknown NodeKind";
-    }
-}
-
 void Analyzer::semanticAnalyze() {
     //tree是现在的核心
     initSemantic();
     grammarToSynax();
-    cout << "主程序运行语义检测开始" << endl;
+    cout << "*******主程序运行语义检测开始*******" << endl;
     synaxProgramAnalyze();
-    cout << "主程序运行语义检测完毕" << endl;
+    cout << "*******主程序运行语义检测完毕*******" << endl;
+    cout << endl << "*******语义类型检测总结*******" << endl;
     printmessage();
     calcuProcSize();
 }
@@ -97,7 +81,7 @@ void Analyzer::initSemantic() {
 }
 
 void Analyzer::grammarToSynax() {
-    cout << "Program Start"  << endl;
+    cout << "***************语义分析开始***************"  << endl;
     tree->stepIn("ProgramName");
     tree->stepIn("ID");
     string proc_name = tree->now->tk->wd.str;
@@ -111,7 +95,7 @@ void Analyzer::grammarToSynax() {
     levelCurrent += 1;
     offsetCurrent.push_back(0);
 
-    cout << "DeclarePart Start"  << endl;
+    cout << "********声明部分********"  << endl;
     synaxDeclareAll();
 }
 
@@ -142,12 +126,12 @@ void Analyzer::synaxTypeDec() {
         tree->now->semantic = sym;
         sym->printSymbol();
 
-        if(id_type != nullptr){  //为什么会为空呢？
+        if(id_type != nullptr){  //ID类型的type，需要进行符号检测
             sym->tp = id_type;
             if(tbSym->findByName(sym->name)){
                 ReDefine e(sym->name, sym->tk->line);
                 cout << e.what() << endl;
-                exit(1);
+                if(ERROREXIT) exit(1);
             }
             else{
                 tbSym->addSymbol(sym);
@@ -167,7 +151,8 @@ void Analyzer::synaxVarDec() {
     while(1)
     {
         if(tree->now->name == "VarDecMore" && tree->now->child.empty()){
-            cout << "FOR DEBUG: vardec part ended" << endl;
+            for(int i = 0; i < tbSym->table[0]->level; i++) cout << '\t';
+            cout << "*******变量声明结束*******" << endl;
             break;
         }
         type* id_type = getIdType();
@@ -185,7 +170,7 @@ void Analyzer::synaxVarDec() {
             if(tbSym->findByName(tree->now->tk->wd.str)){
                 ReDefine e(sym->name, sym->tk->line);
                 cout << e.what() << endl;
-                exit(1);
+                if(ERROREXIT) exit(1);
             }
             else{
                 tt->semantic = sym;
@@ -220,22 +205,24 @@ void Analyzer::synaxProDec() {
 
         tree->now->semantic = procsym; //再次丰富语法树
 
-        //这里我稍微有点不太懂
+        //参数Table的建立
         SymbolTable* paramsymTable = new SymbolTable();
-        paramsymTable->addSymbol(procsym);//这个paramsymTable是真的没看懂
+        paramsymTable->addSymbol(procsym);
 
-        if(tbSym->findByName(proc_name)){
+        if(tbSym->findByName(proc_name)){// proc标识符重定义了
             ReDefine e(procsym->name, procsym->tk->line);
             cout << e.what() << endl;
-            exit(1);
+            if(ERROREXIT) exit(1);;
         }
         else{
             tbSym->addSymbol(procsym);
+            for(int i = 0; i < tbSym->table[0]->level; i++) cout << '\t';
             procsym->printSymbol();
         }
         scope.push_back(paramsymTable);  //加入新的过程，过程的开头是proc
         this->tbSym = scope.back();
-        cout << "进入自定义" << procsym->name << "函数" << endl;
+        for(int i = 0; i < tbSym->table[0]->level; i++) cout << '\t';
+        cout << "***进入自定义" << procsym->name << "函数分析***" << endl;
         tree->stepIn("ParamList");
         tree->preorderStep();
         //这里是ParamList，参数范围
@@ -248,7 +235,6 @@ void Analyzer::synaxProDec() {
             while(1)
             {
                 if(tree->now->name == "ParamMore" && tree->now->child.empty()){
-                    cout << "DEBUG: TAG: ParamList Ended" << endl;
                     break;
                 }
                 tree->stepIn("Param");
@@ -275,7 +261,7 @@ void Analyzer::synaxProDec() {
                     if(tbSym->findByName(paramsym->name)){
                         ReDefine e(paramsym->name, paramsym->tk->line);
                         cout << e.what() << endl;
-                        exit(1);
+                        if(ERROREXIT) exit(1);;
                     }
                     else{
                         tbSym->addSymbol(paramsym); // 大表也要加入
@@ -290,10 +276,13 @@ void Analyzer::synaxProDec() {
         tree->stepIn("ProcDecPart");
         this->synaxDeclareAll();
         tree->stepIn("ProcBody");
-        cout << "检查自定义" << procsym->name << "函数过程" << endl;
+        for(int i = 0; i < tbSym->table[0]->level; i++) cout << '\t';
+        cout << "***检查自定义" << procsym->name << "函数程序体***" << endl;
         synaxProgramAnalyze();
+
+        for(int i = 0; i < tbSym->table[0]->level; i++) cout << '\t';
+        cout << "***自定义" << procsym->name << "函数检查完毕***" << endl;
         tbSym = tbSymCur; // 恢复现状
-        cout << "自定义" << procsym->name << "函数检查完毕" << endl;
 
         tree->stepIn("ProcDecMore");//More Proc声明
         levelCurrent -= 1;
@@ -319,9 +308,63 @@ type* Analyzer::getIdType() { //针对的就是TypeName的解析
         if(struc_typename == "ArrayType"){
              return getArrayType();
         }
-        else if(struc_typename == "RecType"){
-            cout << "暂时不考虑" <<endl;
-            assert(false);
+        //RecType -> RECORD FieldDecList END
+        else if(struc_typename == "RecType"){//在变量定义阶段
+            type* tp = new type();
+            int tmpsize = 0, tmpoff = 0;
+            SymbolTable* filedList = new SymbolTable();
+            tree->stepIn("RECORD");
+            //FieldDecList -> BaseType IdList ; FieldDecMore | ArrayType IdList ; FieldDecMore
+            while(1)
+            {
+                if(tree->now->name == "FieldDecMore" && tree->now->child.empty()){
+                    break;
+                }
+                tree->stepIn("FieldDecList");
+                string filetypekind = tree->now->child[0]->name;//getNodeKind
+                type* filedinnertype = nullptr;
+                if(filetypekind == "BaseType"){
+                    filedinnertype = getBaseType();
+                }
+                else if(filetypekind == "ArrayType"){
+                    filedinnertype = getArrayType();
+                }
+                while(1)
+                {
+                    if(tree->now->name == "IDMore" && tree->now->child.empty()){
+                        break;
+                    }
+                    tree->stepIn("IDList");
+                    tree->stepIn("ID");
+                    TreeNode* tt = tree->now;
+                    Symbol* filedsym = new Symbol(tree->now->tk->wd.str, VarK, filedinnertype, tree->now->tk);
+                    filedsym->varSymbolCons("dir",levelCurrent, tmpoff);
+                    tmpoff += filedsym->tp->getSize();
+                    tmpsize += filedsym->tp->getSize();
+                    int filedsavesize = filedList->table.size();
+                    bool recordinnerRe = false;
+                    for(int i = 0; i < filedsavesize; i++){
+                        if(filedsym->name == filedList->table[i]->name){
+                            recordinnerRe = true;
+                            break;
+                        }
+                    }
+                    if(recordinnerRe){
+                        ReDefine e(tt->tk->wd.str, tt->tk->line);
+                        cout << e.what() << endl;
+                        if(ERROREXIT) exit(1);
+                    }
+                    else{
+                        filedList->addSymbol(filedsym);
+                    }
+                    tree->stepIn("IDMore");
+                }
+                tree->stepIn("FieldDecMore");
+            }
+            tree->stepIn("END");
+            recordtype* rectp = new recordtype(tmpsize, filedList);
+            tp->rt = rectp;
+            return tp;
         }
     }
     else if(base_stru == "ID")
@@ -352,7 +395,7 @@ type* Analyzer::getBaseType() {
     string type_name = tree->now->getNodeKind();  //integer 或者 char
 //    cout << "type:" << type_name << endl;
     type* t = new type();
-    t->bt = new basetype(1,type_name);
+    t->bt = new basetype(4,type_name);
     return t;
 }
 
@@ -373,7 +416,7 @@ type *Analyzer::getArrayType() {
     tree->preorderStep();
     int array_low2 = stoi(array_low);
     int array_top2 = stoi(array_top);
-    basetype* array_ele_basetype = new basetype(1, enumToString(tree->now->tk->wd.tok));
+    basetype* array_ele_basetype = new basetype(4, enumToString(tree->now->tk->wd.tok));
     arraytype* at = new arraytype(array_low2, array_top2, array_ele_basetype);
     array_type->at = at;
 
@@ -383,7 +426,8 @@ type *Analyzer::getArrayType() {
     }
     else{
         string CorrectMes = "Array define correctly in line" + to_string(p->tk->line);
-        cout << CorrectMes << endl;
+        for(int i = 0; i < tbSym->table[0]->level; i++) cout << '\t';
+        if(SEMANTICDEBUG) cout << CorrectMes << endl;
         runMessgae.push_back(CorrectMes);
     }
     return array_type;
@@ -392,13 +436,13 @@ type *Analyzer::getArrayType() {
 
 void Analyzer::synaxProgramAnalyze() {
     tree->stepIn("BEGIN");
-    cout << "Program Begin" << endl;
+    for(int i = 0; i < tbSym->table[0]->level; i++) cout << '\t';
+//    cout << "程序体 Begin" << endl;
     //ProgramBody -> BEGIN StmList END
     synaxStmList();
     tree->stepIn("END");
 
 }
-
 void Analyzer::synaxStmList() {
     tree->stepIn("StmList");
     //StmList -> Stm StmMore
@@ -456,7 +500,7 @@ void Analyzer::synaxStmList() {
                     assignVarSymbol = tempsymtbl->findByName(id_name);
                     if(assignVarSymbol->decKind == TypeK){
                         LAssignInvalid e(assignVarSymbol->name, pp->tk->line,"TypeK");
-//                        exit(1);
+                        if(ERROREXIT) exit(1);
                     }
                     varNotInTable = false;
                     pp->semantic = assignVarSymbol;
@@ -466,7 +510,7 @@ void Analyzer::synaxStmList() {
             if(varNotInTable){// 没有在scope中找到
                 UndefinedSymbol e(id_name, pp->tk->line);
                 cout << e.what() << endl;
-//                exit(1);
+                if(ERROREXIT) exit(1);;
             }
 //            AssignmentRest -> VariMore := Exp, CallStmRest -> ( ActParamList )
             if(asscall_choice == "AssignmentRest"){
@@ -494,6 +538,7 @@ void Analyzer::synaxStmList() {
                             int definehigh = assignVarSymbol->tp->at->top;
                             if(indexval >= definelow && indexval <= definehigh){
                                 string CorrectMes = "Array access correctly in line " + to_string(arr_index_lineno);
+                                for(int i = 0; i < tbSym->table[0]->level; i++) cout << '\t';
                                 cout << CorrectMes << endl;
                                 runMessgae.push_back(CorrectMes);
                             }
@@ -504,6 +549,7 @@ void Analyzer::synaxStmList() {
                         }
                         else{
                             string CorrectMes = "Array access correctly in line " + to_string(arr_index_lineno);
+                            for(int i = 0; i < tbSym->table[0]->level; i++) cout << '\t';
                             cout << CorrectMes << endl;
                             runMessgae.push_back(CorrectMes);
                         }
@@ -518,8 +564,45 @@ void Analyzer::synaxStmList() {
                     //针对结构体
                     tree->stepIn("FieldVar");
                     tree->stepIn("ID");
+                    TreeNode* tt = tree->now;
                     //FieldVar -> ID FieldVarMore
-                    cout << "暂时不考略filed的内容" << endl;
+                    //FieldVarMore -> ε | [ Exp ]
+                    string filedName = tree->now->tk->wd.str;
+                    if(assignVarSymbol->getType() != "RecordType"){
+                        exit(1);
+                    }
+                    SymbolTable* filedTable = assignVarSymbol->tp->rt->filedList;
+                    int filednum = filedTable->table.size();
+                    bool findFiledVar = false;
+                    Symbol* filednow = nullptr;
+                    for(int i = 0; i < filednum; i++){
+                        if(filedTable->table[i]->name == filedName){
+                            filednow = filedTable->table[i];
+                            tree->now->semantic = filednow;
+                            findFiledVar = true;
+                        }
+                    }
+                    if(!findFiledVar){
+                        UndefinedSymbol e(filedName, tt->tk->line);
+                        cout << e.what() << endl;
+                        if(ERROREXIT) exit(1);
+                    }
+                    else{
+                        string CorrectMes = "Record access correctly in line " + to_string(tt->tk->line);
+                        for(int i = 0; i < tbSym->table[0]->level; i++) cout << '\t';
+                        cout << CorrectMes << endl;
+                        runMessgae.push_back(CorrectMes);
+                    }
+                    tree->stepIn("FieldVarMore");
+                    if(tree->now->child.empty()){
+                        assignVarType = filednow->tp;
+                    }
+                    else if(tree->now->tk->wd.tok == LMIDPAREN){
+                        Symbol* filedarr = synaxExpression();
+                        string indexType = filedarr->name;
+                        string indexValue = filedarr->tk->wd.str;
+                        assert(false);
+                    }
                 }
                 tree->stepIn("ASSIGN"); //:= Exp
                 Symbol* right_expsym = synaxExpression();
@@ -533,6 +616,7 @@ void Analyzer::synaxStmList() {
                     }
                     else{
                         string CorrectMes = "AssignStm run correctly in line " + to_string(pp->tk->line);
+                        for(int i = 0; i < tbSym->table[0]->level; i++) cout << '\t';
                         cout << CorrectMes << endl;
                         runMessgae.push_back(CorrectMes);
                     }
@@ -606,13 +690,14 @@ void Analyzer::synaxInputStm() {
     if(tbSym->findByName(id_name)){ //找到
         tree->now->semantic = tbSym->findByName(id_name);
         string CorrectMes = "InputStm run correctly in line " + to_string(p->tk->line);
+        for(int i = 0; i < tbSym->table[0]->level; i++) cout << '\t';
         cout << CorrectMes << endl;
         runMessgae.push_back(CorrectMes);
     }
     else{ //未定义错误
         UndefinedSymbol e(id_name, p->tk->line);
         cout << e.what() << endl;
-        exit(1);
+        if(ERROREXIT) exit(1);;
     }
 }
 
@@ -623,6 +708,7 @@ void Analyzer::synaxOutputStm() {
     Symbol* tmp = synaxExpression();
     if(tmp){
         string CorrectMes = "OutputStm run correctly in line " + to_string(tmp->tk->line);
+        for(int i = 0; i < tbSym->table[0]->level; i++) cout << '\t';
         cout << CorrectMes << endl;
         runMessgae.push_back(CorrectMes);
     }
@@ -636,7 +722,7 @@ Symbol* Analyzer::synaxExpression() {
     Symbol* left_termsym = synaxTerm();
     string leftsym_type = left_termsym->getType();
     string leftsym_val = left_termsym->tk->wd.str;
-    tree->stepIn("OtherTerm");
+    tree->stepIn("OtherTerm");//加法一般项
     while(1)
     {
         if(tree->now->name == "OtherTerm" && tree->now->child.empty()){
@@ -649,7 +735,7 @@ Symbol* Analyzer::synaxExpression() {
         if(!assign_typecheck(leftsym_type, rightsym_type)){
             AssignMisMatch e(leftsym_type, rightsym_type, left_termsym->tk->line);
             cout << e.what() <<endl;
-            exit(1);
+            if(ERROREXIT) exit(1);;
         }
         tree->stepIn("OtherTerm");
     }
@@ -662,7 +748,7 @@ Symbol* Analyzer::synaxTerm() {
     Symbol* left_factor_sym = synaxFactor();
     string leftsym_type = left_factor_sym->getType();
     string leftsym_val = left_factor_sym->tk->wd.str;
-    tree->stepIn("OtherFactor");
+    tree->stepIn("OtherFactor");//乘法因子
     bool termError = false;
     while(1)
     {
@@ -678,7 +764,7 @@ Symbol* Analyzer::synaxTerm() {
             AssignMisMatch e(leftsym_type, rightsym_type, left_factor_sym->tk->line);
             cout << e.what() << endl;
             termError = true;
-            exit(1);
+            if(ERROREXIT) exit(1);;
         }
         tree->stepIn("OtherFactor");
     }
@@ -762,6 +848,7 @@ Symbol* Analyzer::synaxVariable() { //这个return tpye* 和 nodeval 或者 node
                 int definehigh = varsym->tp->at->top;
                 if(indexval >= definelow && indexval <= definehigh){
                     string CorrectMes = "Array access correctly in line " + to_string(arr_index_lineno);
+                    for(int i = 0; i < tbSym->table[0]->level; i++) cout << '\t';
                     cout << CorrectMes << endl;
                     runMessgae.push_back(CorrectMes);
                 }
@@ -772,6 +859,7 @@ Symbol* Analyzer::synaxVariable() { //这个return tpye* 和 nodeval 或者 node
             }
             else{
                 string CorrectMes = "Array access correctly in line " + to_string(arr_index_lineno);
+                for(int i = 0; i < tbSym->table[0]->level; i++) cout << '\t';
                 cout << CorrectMes << endl;
                 runMessgae.push_back(CorrectMes);
             }
@@ -801,7 +889,7 @@ void Analyzer::synaxConditionalStm() {
     tree->stepIn("FI");
     TreeNode* p = tree->now;
     string CorrectMes = "ConditionalStm run correctly in line " + to_string(p->tk->line);
-    cout << CorrectMes <<endl;
+    if(SEMANTICDEBUG) cout << CorrectMes <<endl;
     runMessgae.push_back(CorrectMes);
 }
 
@@ -814,7 +902,7 @@ void Analyzer::synaxLoopStm() {
     tree->stepIn("ENDWH");
     TreeNode* p = tree->now;
     string CorrectMes = "LoopStm run correctly in line " + to_string(p->tk->line);
-    cout << CorrectMes <<endl;
+    if(SEMANTICDEBUG) cout << CorrectMes <<endl;
     runMessgae.push_back(CorrectMes);
 }
 
@@ -824,7 +912,7 @@ void Analyzer::synaxReturnStm() {
     TreeNode* p = tree->now;
     string CorrectMes = "ReturnStm run correctly in line " + to_string(p->tk->line);
     runMessgae.push_back(CorrectMes);
-    cout << CorrectMes <<endl;
+    if(SEMANTICDEBUG) cout << CorrectMes <<endl;
 
 }
 
@@ -847,6 +935,7 @@ Symbol* Analyzer::synaxRelExpression() {
     }
     else{
         string CorrectMes = "RelExpression run correctly in line " + to_string(currentline);
+        for(int i = 0; i < tbSym->table[0]->level; i++) cout << '\t';
         cout << CorrectMes << endl;
         runMessgae.push_back(CorrectMes);
         return left_expsym;
@@ -855,6 +944,9 @@ Symbol* Analyzer::synaxRelExpression() {
 
 bool Analyzer::assign_typecheck(string lefttype, string righttype) {
     if(lefttype == "INTEGER"){
+        return righttype == "INTEGER" || righttype == "INTC";
+    }
+    else if(lefttype == "INTC"){
         return righttype == "INTEGER" || righttype == "INTC";
     }
     else {
@@ -874,13 +966,27 @@ void Analyzer::getSemanticList(TreeNode *p) {
     return ;
 }
 
+string nodeKindToString(NodeKind x){
+    switch (x) {
+        case ProK:  return "ProK";
+        case PheadK: return "PheadK";
+        case TypeK: return "TypeK";
+        case VarK:   return "VarK";
+        case ProcDecK:  return "ProcDecK";
+        case StmLK: return "StmLK";
+        case DecK:  return "DecK";
+        case StmtK: return "StmtK";
+        case ExpK: return "ExpK";
+        default:
+            assert(false);
+            return "Unknown NodeKind";
+    }
+}
 
-
-
-
-
-
-
-
-
+void printSymbolTable(SymbolTable *symtbl) {
+    int m = symtbl->table.size();
+    for(int i = 0; i < m; i++){
+        symtbl->table[i]->printSymbol();
+    }
+}
 

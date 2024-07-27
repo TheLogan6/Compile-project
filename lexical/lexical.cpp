@@ -8,8 +8,8 @@
 
 
 
-#define LEXOPENFILEDIR "../Reference/lexicalinputtest.txt"
-#define LEXOUTPUTFILEDIR "../lexicaloutput.txt"
+#define LEXOPENFILEDIR "../Reference/lexicaltest.txt"
+#define LEXOUTPUTFILEDIR "../Output/lexicaloutput.txt"
 
 using namespace std;
 
@@ -56,13 +56,13 @@ string enumToString(int lexvalue){
         case DO: return "DO";
         case ENDWH: return "ENDWH";
         case BEGIN: return "BEGIN";
-        case END1: return "END1";
+        case END: return "END";
         case READ: return "READ";
         case WRITE: return "WRITE";
         case ARRAY: return "ARRAY";
         case OF: return "OF";
         case RECORD: return "RECORD";
-        case RETURN1: return "RETURN1";
+        case RETURN: return "RETURN";
         case INTEGER: return "INTEGER";
         case CHAR: return "CHAR";
         case ID: return "ID";
@@ -94,7 +94,7 @@ void initReservedWord(){
     reservedWords[2] = {"var", VAR};
     reservedWords[3] = {"procedure", PROCEDURE};
     reservedWords[4] = {"begin", BEGIN};
-    reservedWords[5] = {"end", END1};
+    reservedWords[5] = {"end", END};
     reservedWords[6] = {"array", ARRAY};
     reservedWords[7] = {"of", OF};
     reservedWords[8] = {"record", RECORD};
@@ -107,7 +107,7 @@ void initReservedWord(){
     reservedWords[15] = {"endwh", ENDWH};
     reservedWords[16] = {"read", READ};
     reservedWords[17] = {"write", WRITE};
-    reservedWords[18] = {"return", RETURN1};
+    reservedWords[18] = {"return", RETURN};
     reservedWords[19] = {"integer", INTEGER};
     reservedWords[20] = {"char", CHAR};
 }
@@ -182,7 +182,6 @@ Sem getReserved(string s)
 // 特殊字符检查：空格 制表符 回车 换行
 bool isBlank(char ch)
 {
-
     if (ch == ' ') // 空格
         return true;
     else if (ch == '\n') // 换行
@@ -277,7 +276,7 @@ void lexicalAnalyse(FILE* fp)
                         reserveWriteToken(index, lineNum, record); // 保留字写入Token序列
                         index++;
                     }
-                    else //标识符
+                    else //标识符ID
                     {
                         writeToken(index, lineNum, record, ID);
                         index++;
@@ -448,7 +447,7 @@ void lexicalAnalyse(FILE* fp)
 void printTokenList()
 {
     int i = 0;
-    cout  << 1 << endl; //重定向后莫名奇妙会吞一个end
+    cout  << "Lexical" << endl; //重定向后莫名奇妙会吞一个end
     cout  << "编号"  << "\t" <<  std::left << setw(10) << "类型" << "\t\t" << std::left << setw(10) << "单词语义" << "\t\t" << std::left << setw(10) << "所在行数";
     cout << endl;
     while (tokenList[i].wd.tok != ENDFILE)

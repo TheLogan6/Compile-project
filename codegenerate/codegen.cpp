@@ -1,3 +1,4 @@
+#pragma GCC optimize("O0")
 #include "codegen.h"
 #include <fstream>
 #include <cctype>
@@ -8,21 +9,23 @@ extern int pointer; //treepointer
 extern GrammarTree* tree;
 
 
-#define LEXOPENFILEDIR "../Reference/test6addarray.txt"
+#define LEXOPENFILEDIR "../Reference/test9bubble.txt"
 #define LEXOUTPUTFILEDIR "../Output/lexicaloutput.txt"
 
-#define GRAOUTPUTFILEDIR "../Output/test6gra.txt"
-#define SEMANOUTPUTFILEDIR "../Output/test6semantic.txt"
-#define MIDCODEOUTPUTDIR "../Output/test6mid.txt"
-#define MIPSCODEOUTPUTDIR "../Output/test6mipscode.txt"
+#define GRAOUTPUTFILEDIR "../Output/test9gra.txt"
+#define SEMANOUTPUTFILEDIR "../Output/test9semantic.txt"
+#define MIDCODEOUTPUTDIR "../Output/test9mid.txt"
+#define MIPSCODEOUTPUTDIR "../Output/test9mipscode.txt"
 
-//#define GRAMMARMAIN
+#define GRAMMARMAIN
 #define SEMANTICMAIN
 #define MIDCODEMAIN
-#define MIPSCODEMAIN
+//#define MIPSCODEMAIN
+#define MIPSDEBUG 1
+#define NITIAN 0
 
 #ifdef MIPSCODEMAIN
-#define MIPSDEBUG 0
+
 int main(){
     initReservedWord(); //初始化保留字
     FILE *fp;
@@ -75,45 +78,54 @@ int main(){
 
 
 
-
 void FinalCodeGen::finalCodeGen() {
     //全局变量声明
     int m = argExpList.size();
+    mipsgenJump("j", "main");
     for(int i = 0; i < m; i++)
     {
         FourArgExp* curexp = argExpList[i];
         string codechoice = curexp->codekind;
-        if(MIPSDEBUG) cout << argExpList[i]->index << codechoice << endl;
-        if(codechoice == "ASSIGN"){//arg1 = arg2 ，如果Arg
-            string ldreg2;
+        if(MIPSDEBUG) cout << "#"<< argExpList[i]->index << codechoice << endl;
+        if(codechoice == "ASSIGN"){   //arg1 = arg2
+            //先处理arg2
+            string ldreg2,off2; //需要store的值
             ldreg2 = regmmu.allocateReg(curexp->arg2);
             if(curexp->arg2->form == "ValueForm"){
+//                off2 = parseArgAddress(curexp->arg2);
                 mipsgenArith_R("addi", ldreg2, "$zero", curexp->arg2->name);
             }
             else if(curexp->arg2->form == "TempForm" || curexp->arg2->form == "AddrForm"){
-                string off2 = parseArgAddress(curexp->arg2);
-                mipsgenMem_I("lw",ldreg2,"$sp",off2);
+                if(curexp->arg2->access == "indir"){
+                    off2 = parseArgAddress(curexp->arg2);
+                    string ldregindir = regmmu.allocateReg(nullptr,"OnlyOnce");
+                    mipsgenMem_I("lw", ldregindir, "$sp", off2);
+                    mipsgenArith_R("add",ldregindir, ldregindir, "$sp");
+                    mipsgenMem_I("lw", ldreg2, ldregindir, to_string(0));
+                }
+                else{
+                    off2 = parseArgAddress(curexp->arg2);
+                    mipsgenMem_I("lw",ldreg2,"$sp",off2);
+                }
             }
-            string off1;
+            //再处理arg1
+            string off1;   //arg1不需要分配直接ld的地方
             if(curexp->arg1->access == "dir"){
                 off1 = parseArgAddress(curexp->arg1);
+                mipsgenMem_I("sw", ldreg2 ,"$sp",off1);
             }
             else if(curexp->arg1->access == "indir"){
                 off1 = parseArgAddress(curexp->arg1);
                 string ldregindir = regmmu.allocateReg(nullptr, "OnlyOnce");
                 mipsgenMem_I("lw", ldregindir, "$sp", off1);
-                mipsgenArith_R("sll",ldregindir,ldregindir, to_string(2));
                 mipsgenArith_R("add",ldregindir, ldregindir, "$sp");
                 mipsgenMem_I("sw", ldreg2, ldregindir , to_string(0));
             }
-            mipsgenMem_I("sw", ldreg2 ,"$sp",off1);
         }
-        else if(codechoice == "Label"){
-            mipsgenLabel(curexp->arg1->name);
-        }
+
         else if(codechoice == "ADD" || codechoice =="SUB" || codechoice =="MULT" || codechoice =="DIV" || codechoice == "LTC"){
             //arg3 = arg1+arg2
-            string off1, ldreg1, off2, ldreg2, ldreg3, off3;
+            string off1, ldreg1;
             ldreg1 = regmmu.allocateReg(curexp->arg1);
             if(curexp->arg1->form == "ValueForm"){
                 mipsgenArith_R("addi", ldreg1, "$zero", curexp->arg1->name);
@@ -123,12 +135,18 @@ void FinalCodeGen::finalCodeGen() {
                 mipsgenMem_I("lw",ldreg1,"$sp", off1);
                 if(curexp->arg1->access == "indir"){
                     string ldregindir1 = regmmu.allocateReg(nullptr,"OnlyOnce");
-                    mipsgenArith_R("sll",ldregindir1,ldregindir1, to_string(2));
                     mipsgenArith_R("add",ldregindir1, "$sp", ldreg1);
                     mipsgenMem_I("lw", ldreg1, ldregindir1, to_string(0));
                 }
             } //处理完Arg1
+            string off2, ldreg2;
             ldreg2 = regmmu.allocateReg(curexp->arg2);
+            if(curexp->arg2->form != "ValueForm")
+                if(NITIAN) {
+                    cout << "不是ValueForm" <<endl;
+                    cout << curexp->getfourArgExp() << endl;
+                    cout <<curexp->arg2->form << curexp->arg2->name << curexp->arg2->dataoff << "逆天错误" << endl;
+                }
             if(curexp->arg2->form == "ValueForm"){
                 mipsgenArith_R("addi", ldreg2, "$zero", curexp->arg2->name);
             }
@@ -137,12 +155,11 @@ void FinalCodeGen::finalCodeGen() {
                 mipsgenMem_I("lw",ldreg2,"$sp", off2);
                 if(curexp->arg2->access == "indir"){
                     string ldregindir2 = regmmu.allocateReg(nullptr,"OnlyOnce");
-                    mipsgenArith_R("sll",ldregindir2,ldregindir2, to_string(2));
                     mipsgenArith_R("add",ldregindir2, "$sp", ldreg2);
                     mipsgenMem_I("lw", ldreg2, ldregindir2, to_string(0));
                 }
             }//处理完Arg2
-
+            string ldreg3, off3;
             ldreg3 = regmmu.allocateReg(curexp->arg3);
             off3 = parseArgAddress(curexp->arg3);
             string op = codechoice;
@@ -165,7 +182,10 @@ void FinalCodeGen::finalCodeGen() {
             off3 = parseArgAddress(curexp->arg3);
             mipsgenMem_I("sw", ldreg_offset, "$sp", off3);
         }
-        else if(codechoice == "EQC"){//逆天mips，刚刚发现不太对
+        else if(codechoice == "Label"){
+            mipsgenLabel(curexp->arg1->name);
+        }
+        else if(codechoice == "EQC"){//mips没有这类指令啊
             assert(false);
         }
         else if(codechoice == "JUMP"){
@@ -173,7 +193,7 @@ void FinalCodeGen::finalCodeGen() {
         }
         else if(codechoice == "JUMP0"){//等于0则跳转
             string ldreg,off;
-            ldreg = regmmu.allocateReg(curexp->arg1); //这里需要斟酌一下
+            ldreg = regmmu.allocateReg(curexp->arg1);
             off = parseArgAddress(curexp->arg1);
             mipsgenMem_I("lw", ldreg, "$sp", off);
             mipsgenBranchZ("beq", ldreg, "$zero", curexp->arg2->name);
@@ -193,33 +213,68 @@ void FinalCodeGen::finalCodeGen() {
             curgenRecord = findRecordByName(curprocarg->name);
             mipsgenLabel("main");
             mipsgenStoreProcState();
-            if(MIPSDEBUG) cout << "状态end" << endl;
+            if(MIPSDEBUG) cout << "#状态end" << endl;
         }
         else if(codechoice == "PENTRY"){
             cout << endl;
             Arg* curprocarg = argExpList[i]->arg1;
             curgenPro = curprocarg->sym;
             curgenRecord = findRecordByName(curprocarg->name);
-
             mipsgenLabel(curprocarg->name); //proc:
             mipsgenStoreProcState();
-            if(MIPSDEBUG) cout << "状态end" << endl;
-
+            if(MIPSDEBUG) cout << "#状态end" << endl;
+            //调用者才需要参数赋值
+            int paramsize = 0;
+            bool isFindPro = false;
+            int tarcall = 0;
+            int argument_offstart = 0;
+            for(int i = 0; i < m; i++){
+                vector<ActiveRecord*> curchain = callorder[i];
+                int chainnum = curchain.size();
+                for(int j = 0; j < chainnum ; j++){//调用顺序
+                    if(curchain[j]->procname == curgenPro->name){ //根据procname找sym是否在其中
+                        isFindPro = true;
+                        tarcall = j;
+                        break;
+                    }
+                }
+                if(isFindPro){
+                    argument_offstart = curchain[tarcall-1]->paramstart + curchain[tarcall]->totalsize;
+                    paramsize = (curchain[tarcall-1]->statestart - curchain[tarcall-1]->paramstart);
+                    break;
+                }
+            }
+            for(int k = 0; k < paramsize; k+=4)
+            {
+                string lgregtemp = regmmu.allocateReg(nullptr,"OnlyOnce");
+                mipsgenMem_I("lw", lgregtemp ,"$sp", to_string(argument_offstart));
+                argument_offstart += 4;
+                mipsgenMem_I("sw", lgregtemp, "$sp", to_string(k));
+            }
+            if(MIPSDEBUG) cout << "#参数加载" << endl;
         }
         else if(codechoice == "CALL"){
-        }
-        else if(codechoice == "VALACT" || codechoice == "VARACT"){
+            Arg* curprocarg = argExpList[i]->arg1;
+            mipsgenJump("jal", curexp->arg1->name);
 
         }
+        else if(codechoice == "VALACT" || codechoice == "VARACT"){
+            string off,ldreg;
+            off = parseArgAddress(curexp->arg1);
+            ldreg = regmmu.allocateReg(curexp->arg1);
+            mipsgenMem_I("lw",ldreg, "$sp", off);
+            int parampoint = curgenRecord->paramstart + stoi(curexp->arg3->name)*4;
+            mipsgenMem_I("sw",ldreg,"$sp", to_string(parampoint));
+        }
         else if(codechoice == "ENDPROC"){
-            if(MIPSDEBUG) cout << "开始退出" << endl;
+            if(MIPSDEBUG) cout << "#开始退出" << endl;
             mipsgenArith_I("addiu","$sp", "$fp", "0");
-            mipsgenMem_I("lw", "$fp", "$sp", to_string((curgenRecord->statestart+1)*4));
-            mipsgenArith_I("addi", "$sp", "$sp", to_string(curgenRecord->totalsize*4));
+            mipsgenMem_I("lw", "$fp", "$sp", to_string((curgenRecord->statestart+4)));//*4
+            mipsgenArith_I("addi", "$sp", "$sp", to_string(curgenRecord->totalsize));//*4
             if (curgenRecord->procname != callorder[0][0]->procname)
                 mipsgenJump("jr", "$ra");
             mipsgenNop();
-            if(MIPSDEBUG) cout << "函数end" <<endl;
+            if(MIPSDEBUG) cout << "#函数end" <<endl;
         }
     }
 }
@@ -235,19 +290,22 @@ string RegManagement::allocateReg(Arg* arg, string stmType) {
     //记录已分配
     if(arg->form == "TempForm" || arg->form == "AddrForm"){ //不是value时才可以找
         for(int i = 1; i <= 24; i++){
-            if(regfile[i].used){
+            if(regfile[i].used && regfile[i].target){
                 if(regfile[i].target->name == arg->name && regfile[i].target->datalevel == arg->datalevel){
                     targetgre = regtypeToString(static_cast<RegType>(i));
+                    lruRecentUse(i);
                     return targetgre;
                 }
             }
         }
     }
+    //reg未分配
     if(stmType == "Default"){
         for(int i = 1; i <= 24; i++){
             if(regfile[i].used == false){
                 existEmpty = true;
                 targetgre = regtypeToString(static_cast<RegType>(i));
+                lruRecentUse(i);
                 regfile[i].used = true;
                 regfile[i].target = arg;
                 break;
@@ -257,15 +315,13 @@ string RegManagement::allocateReg(Arg* arg, string stmType) {
     else if(stmType == "ReturnRes"){
 
     }
-    else if(stmType == "Temp"){
-        assert(false);
-        for(int i = 7; i <= 14; i++){
-            if(regfile[i].used == false){
-                existEmpty = true;
-                //开始分配
-            }
-        }
+    if(!existEmpty){
+        assert(targetgre == "");
+        int lastuse = lruqueue[0];
+        targetgre = regtypeToString(static_cast<RegType>(lastuse));
+        lruRecentUse(lastuse);
     }
+
     return targetgre;
 }
 
@@ -275,12 +331,14 @@ string FinalCodeGen::parseArgAddress(Arg *arg) {
 
     }
     if(arg->form == "TempForm"){
-        off = to_string(arg->dataoff*4);
+        off = to_string(arg->dataoff);//*4
     }
     else if(arg->form == "AddrForm"){
         off = findOffsetByArg(arg);
     }
-    else if(arg->form == "ValueForm") assert(false);
+    else if(arg->form == "ValueForm") {
+        assert(false);
+    }
     return off;
 }
 
@@ -320,7 +378,7 @@ string FinalCodeGen::findOffsetByArg(Arg *arg1) {
         }
     }
     off += leveloff;
-    off *= 4; //因为一个int最后是4个单位
+//    off *= 4; //因为一个int最后是4个单位
     return to_string(off);
 }
 
@@ -394,9 +452,9 @@ string FinalCodeGen::mipsgenNop() {
 }
 
 void FinalCodeGen::mipsgenStoreProcState() {
-    mipsgenArith_I("addiu", "$sp", "$sp", "-"+ to_string(curgenRecord->totalsize*4));
-    mipsgenMem_I("sw","$ra","$sp", to_string((curgenRecord->statestart+3)*4)); // 存储$ra
-    mipsgenMem_I("sw","$fp","$sp", to_string((curgenRecord->statestart+1)*4));//存储$fp
+    mipsgenArith_I("addi", "$sp", "$sp", "-"+ to_string(curgenRecord->totalsize));//*4 addiu
+    mipsgenMem_I("sw","$ra","$sp", to_string((curgenRecord->statestart+3*4))); // 存储$ra//*4
+    mipsgenMem_I("sw","$fp","$sp", to_string((curgenRecord->statestart+1*4)));//存储$fp//*4
     mipsgenArith_R("addiu", "$fp", "$sp", "0");
 }
 

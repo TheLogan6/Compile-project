@@ -1,3 +1,4 @@
+#pragma GCC optimize("O0")
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -8,11 +9,6 @@
 #include "midcode.h"
 using namespace std;
 
-extern Token tokenList[1010];
-extern int pointer; //treepointer
-extern GrammarTree* tree;
-
-//SymbolTable* smbltable;
 
 #define LEXOPENFILEDIR "../Reference/test6addall.txt"
 #define LEXOUTPUTFILEDIR "../Output/lexicaloutput.txt"
@@ -24,6 +20,8 @@ extern GrammarTree* tree;
 //#define GRAMMARMAIN
 //#define SEMANTICMAIN
 //#define MIDCODEMAIN
+
+#define MIDCODEDEBUG 1
 #ifdef MIDCODEMAIN
 int main(){
     initReservedWord(); //初始化保留字
@@ -73,7 +71,6 @@ int main(){
 void midCodeGenerate::grammarTreeScan() {
     tree->goRoot();
     TreeNode* p = tree->now;
-    cout << p->name << endl;
     //programHead部分分析************
     tree->stepIn("ProgramHead");
     tree->stepIn("ID");
@@ -84,7 +81,7 @@ void midCodeGenerate::grammarTreeScan() {
 
 }
 
-void midCodeGenerate::codeAnalysisDeclare() {
+void midCodeGenerate::codeAnalysisDeclare() { //Declare主要针对procedure，以及函数嵌套
     tree->stepIn("DeclarePart");
     tree->stepIn("ProcDec");
     if(!tree->now->child.empty()){ //不能为空
@@ -95,10 +92,10 @@ void midCodeGenerate::codeAnalysisDeclare() {
             }
             tree->stepIn("ProcName");
             tree->stepIn("ID");
-            prostack.push_back(tree->now->semantic);  //没遇到一个过程要进入观察
+            prostack.push_back(tree->now->semantic);
             tree->stepIn("ParamList");//过渡一下
             tree->stepIn("ProcDecPart");
-            codeAnalysisDeclare(); //递归确认嵌套函数
+            codeAnalysisDeclare(); //递归函数调用确实函数声明
             tree->stepIn("ProcBody");
             codeAnalysisProgramBody();
             tree->stepIn("ProcDecMore");
@@ -108,8 +105,8 @@ void midCodeGenerate::codeAnalysisDeclare() {
 
 void midCodeGenerate::codeAnalysisProgramBody() {
     tree->stepIn("BEGIN");
-    cout << "Mid Code Program Begin" << endl;
-    midgenProDec();
+    cout << "******Mid Code Program Begin*****" << endl;
+    midgenProDec(); //当前的size是vari和param的大小
     midgenStmList();
     tree->stepIn("END");
     genRecordForMips();
@@ -123,7 +120,7 @@ void midCodeGenerate::midgenProDec() {
     prostack.pop_back();
     labeltlb.addToList(curPro->name, codeindex);
     Arg* arg1 = new Arg("LabelForm",curPro->name, "","indir",curPro->level ,0,curPro);
-    string proSize = (string)"SIZEOF" + "  " + to_string(curPro->size);
+    string proSize = (string)"SIZEOF" + "  " + to_string(curPro->size);//这个size是致函param和vari的
     Arg* arg2 = new Arg("ValueForm",proSize,proSize);
     string proLevel = to_string(curPro->level);
     Arg* arg3 = new Arg("ValueForm",proLevel, proLevel);
@@ -136,7 +133,7 @@ void midCodeGenerate::midgenProDec() {
     }
     FourArgExp* curfourargexp = new FourArgExp(op, codeindex, arg1,arg2,arg3);
     argExpList.push_back(curfourargexp);
-    cout << curfourargexp->getfourArgExp() << endl;
+    if(MIDCODEDEBUG) cout << curfourargexp->getfourArgExp() << endl;
 }
 
 void midCodeGenerate::midgenStmList() {
@@ -162,7 +159,7 @@ void midCodeGenerate::midgenStmList() {
             midgenOutputStm();
         }
         else if(Stmlist_Choice == "ReturnStm"){
-
+            assert(false); //虽然可以写，但我感觉没啥意义， 语法不支持 x = f() 这个类型
         }
             //详细处理
         else if(Stmlist_Choice == "ID"){
@@ -197,18 +194,18 @@ void midCodeGenerate::midgenStmList() {
                 while(1)
                 {
                     if(tree->now->name == "ActParamList" && tree->now->child.empty()){
-                        Symbol* curprosym = curvarsym;
+                        Symbol* curprosym = curvarsym;//函数无参调用
                         midgenProcedureCallCode(temp_paramlist, curprosym);
                         break;
                     }
                     if(tree->now->name == "ActParamMore" && tree->now->child.empty()){
                         break;
                     }
-                    Arg* exparg = midgenExpression();
+                    Arg* exparg = midgenExpression(); //参数变量
                     temp_paramlist.push_back(exparg);
                     tree->stepIn("ActParamMore");
                     Symbol* curprosym = curvarsym;
-                    midgenProcedureCallCode(temp_paramlist, curprosym);
+                    midgenProcedureCallCode(temp_paramlist, curprosym); //生成参数
                 }
 
             }
@@ -220,7 +217,7 @@ void midCodeGenerate::midgenStmList() {
     }
     return;
 }
-
+//IF RelExp THEN 	StmList ELSE StmList  FI
 void midCodeGenerate::midgenConditionalStm() {
     tree->stepIn("IF");
     Arg* boolarg = midgenBoolExp();//判断执行Then
@@ -228,17 +225,17 @@ void midCodeGenerate::midgenConditionalStm() {
     labelgen ++ ;
     string elseLabel = "Lbl" + to_string(labelgen);
     Arg* elsearg = new Arg("LabelForm", elseLabel, elseLabel,"indir");
-    midgenJumpCode("JUMP0", boolarg, elsearg);
+    midgenJumpCode("JUMP0", boolarg, elsearg); //否则进入else
     midgenStmList();
     tree->stepIn("ELSE");
     labelgen++;
-    string outlabel = "L" + to_string(labelgen);
+    string outlabel = "Lbl" + to_string(labelgen);
     Arg* outarg = new Arg("LabelForm", outlabel, outlabel, "indir");
     midgenJumpCode("JUMP", outarg);
-    midgenLabelCode("LABEL", elsearg);
+    midgenLabelCode("Label", elsearg); //else标签进入点
     midgenStmList();
     tree->stepIn("FI");
-    midgenLabelCode("LABEL", outarg);
+    midgenLabelCode("Label", outarg); //out of if
 }
 
 void midCodeGenerate::midgenLoopStm() {
@@ -246,19 +243,20 @@ void midCodeGenerate::midgenLoopStm() {
     labelgen++;
     string looplabel = "Lbl" + to_string(labelgen);
     Arg* looparg = new Arg("LabelForm", looplabel, looplabel, "indir");
-    midgenLabelCode("Label", looparg);
+    midgenLabelCode("Label", looparg); //Label start
     Arg* boolarg = midgenBoolExp();
     tree->stepIn("DO");
     labelgen++;
     string outlabel = "Lbl" + to_string(labelgen);
     Arg* outarg = new Arg("LabelForm", outlabel, outlabel, "indir");
-    midgenJumpCode("JUMP0", boolarg, outarg);
+    midgenJumpCode("JUMP0", boolarg, outarg);//jump
     midgenStmList();
     tree->stepIn("ENDWH");
     midgenJumpCode("JUMP", looparg);
-    midgenJumpCode("Label", outarg);
+    midgenJumpCode("Label", outarg); //跳出循环
 }
 
+//Exp		::=  Term   OtherTerm
 Arg* midCodeGenerate::midgenExpression() {
     tree->stepIn("Exp");
     Arg* leftarg = midgenTerm();
@@ -272,17 +270,16 @@ Arg* midCodeGenerate::midgenExpression() {
         //OtherTerm -> ε | AddOp Exp
         tree->stepIn("AddOp");
         tree->preorderStep();
-        op = tree->now->tk->wd.str;
+        op = tree->now->tk->wd.str; //存的是+ -
 //        cout << "op=" << op << endl;
         tree->stepIn("Exp");
         Arg* rightarg = midgenExpression();
-        leftarg = midgenExpCode(op,leftarg,rightarg);
-        //这里差关键一步！
+        leftarg = midgenExpCode(op,leftarg,rightarg); //OtherTerm代表一定需要temp的
         tree->stepIn("OtherTerm");
     }
-
     return leftarg;
 }
+
 //Term -> Factor OtherFactor
 Arg* midCodeGenerate::midgenTerm() {
     tree->stepIn("Term");
@@ -299,7 +296,7 @@ Arg* midCodeGenerate::midgenTerm() {
         op = tree->now->tk->wd.str;
         tree->stepIn("Term");
         Arg* rightarg = midgenTerm();
-        leftarg = midgenExpCode(op, leftarg, rightarg);  //临时变量生成
+        leftarg = midgenExpCode(op, leftarg, rightarg);  //同样OtherFactor代表一定有temp
         tree->stepIn("OtherFactor");
     }
     return leftarg;
@@ -334,7 +331,7 @@ Arg* midCodeGenerate::midgenVariable() {
     if(tree->now->child.empty()){
         leftarg = new Arg("AddrForm",curVarsym->name, "", curVarsym->access, curVarsym->level, curVarsym->offset,curVarsym);
         return leftarg;
-    }//AddrForm是什么含义啊 这是一个地址变量啊？？
+    }
     tree->preorderStep();
     string varimore_choice = tree->now->name;
     if(varimore_choice == "LMIDPAREN"){
@@ -347,7 +344,7 @@ Arg* midCodeGenerate::midgenVariable() {
     }
 }
 
-Arg* midCodeGenerate::midgenExpCode(string op, Arg *left, Arg *right) {//产生TempForm
+Arg* midCodeGenerate::midgenExpCode(string op, Arg *left, Arg *right) {//产生TempForm,用于i-low
     codeindex ++ ;
     tempvargen ++;
     op = symbolToWord(op);
@@ -358,7 +355,7 @@ Arg* midCodeGenerate::midgenExpCode(string op, Arg *left, Arg *right) {//产生T
     curProAddTempVari(tmparg);
     FourArgExp* curfourexp = new FourArgExp(op, codeindex, left, right, tmparg);
     argExpList.push_back(curfourexp);
-    cout << curfourexp->getfourArgExp() << endl;
+    if(MIDCODEDEBUG) cout << curfourexp->getfourArgExp() << endl;
     return tmparg;
 }
 
@@ -366,9 +363,10 @@ void midCodeGenerate::midgenAssign(Arg *left, Arg *right) {
     codeindex ++;
     FourArgExp* curargexp = new FourArgExp("ASSIGN", codeindex, left, right);
     argExpList.push_back(curargexp);
-    cout << curargexp->getfourArgExp() << endl;
+    if(MIDCODEDEBUG) cout << curargexp->getfourArgExp() << endl;
     return ;
 }
+
 string midCodeGenerate::symbolToWord(string op) {
     if (op == "-") {
         return "SUB";
@@ -402,7 +400,7 @@ Arg *midCodeGenerate::midgenBoolExp() {
 
 }
 
-Arg *midCodeGenerate::midgenBoolCode(string op, Arg *left, Arg *right) { // 产生TempForm
+Arg *midCodeGenerate::midgenBoolCode(string op, Arg *left, Arg *right) { // ReExp同Exp，产生TempForm
     codeindex++;
     tempvargen ++ ;
     op = symbolToWord(op);
@@ -411,7 +409,7 @@ Arg *midCodeGenerate::midgenBoolCode(string op, Arg *left, Arg *right) { // 产�
     curProAddTempVari(temparg);
     FourArgExp* curargexp = new FourArgExp(op, codeindex, left, right, temparg);
     argExpList.push_back(curargexp);
-    cout << curargexp->getfourArgExp() << endl;
+    if(MIDCODEDEBUG) cout << curargexp->getfourArgExp() << endl;
     return temparg;
 }
 
@@ -419,7 +417,7 @@ void midCodeGenerate::midgenJumpCode(string op, Arg *boolarg, Arg *elsearg) {
     codeindex++;
     FourArgExp* curargexp = new FourArgExp(op, codeindex, boolarg, elsearg);
     argExpList.push_back(curargexp);
-    cout << curargexp->getfourArgExp() << endl;
+    if(MIDCODEDEBUG) cout << curargexp->getfourArgExp() << endl;
     return;
 }
 //重载
@@ -427,7 +425,7 @@ void midCodeGenerate::midgenJumpCode(string op, Arg *boolarg) {
     codeindex++;
     FourArgExp* curargexp = new FourArgExp(op, codeindex, boolarg);
     argExpList.push_back(curargexp);
-    cout << curargexp->getfourArgExp() << endl;
+    if(MIDCODEDEBUG) cout << curargexp->getfourArgExp() << endl;
     return ;
 }
 
@@ -436,7 +434,8 @@ void midCodeGenerate::midgenLabelCode(string op, Arg *labelarg) {
     labeltlb.addToList(labelarg->name, codeindex);
     FourArgExp* curargexp = new FourArgExp(op, codeindex, labelarg);
     argExpList.push_back(curargexp);
-    cout << curargexp->getfourArgExp() << endl;
+    if(MIDCODEDEBUG) cout << curargexp->getfourArgExp() << endl;
+    return ;
 }
 
 void midCodeGenerate::midgenInputStm() {
@@ -448,14 +447,17 @@ void midCodeGenerate::midgenInputStm() {
     Arg* curarg = new Arg("AddrForm", curvarsym->name, curvarsym->name, curvarsym->access, curvarsym->level, curvarsym->offset,curvarsym);
     FourArgExp* curargexp = new FourArgExp("READC",codeindex,curarg);
     argExpList.push_back(curargexp);
-    cout << curargexp->getfourArgExp() << endl;
+    if(MIDCODEDEBUG) cout << curargexp->getfourArgExp() << endl;
 }
 
 void midCodeGenerate::midgenOutputStm() {
     tree->stepIn("OutputStm");
     tree->stepIn("WRITE");
+    codeindex++;
     Arg* leftarg = midgenExpression();
-    cout << "WRITEC ARG1:" << leftarg->name << endl;
+    FourArgExp* curargexp = new FourArgExp("WRITEC",codeindex,leftarg);
+    argExpList.push_back(curargexp);
+    if(MIDCODEDEBUG) cout << curargexp->getfourArgExp() << endl;
 }
 
 void midCodeGenerate::midgenReturnStm() {
@@ -477,42 +479,42 @@ void midCodeGenerate::midgenProcedureCallCode(vector<Arg *> param, Symbol *proc)
         else{
             op = "VALACT";
         }
-        midgenParamCode(op, arg_param, sem_param->offset, sem_param->size);
+        midgenParamCode(op, arg_param, sem_param->offset, i); //参数生成
     }
     Arg* labelarg = new Arg("LabelForm",proc->name, proc->name, "indir");
-    FourArgExp* curargexp = new FourArgExp("CALL", codeindex, labelarg);
+    FourArgExp* curargexp = new FourArgExp("CALL", codeindex, labelarg); //CALL代码
     argExpList.push_back(curargexp);
-    cout << curargexp->getfourArgExp() << endl;
+    if(MIDCODEDEBUG) cout << curargexp->getfourArgExp() << endl;
 }
 
 Arg *midCodeGenerate::midgenArray(Symbol* arrayid) {
     Arg* leftarg = midgenExpression();
     int arraylow = arrayid->tp->at->low;
     int arraysize = arrayid->tp->at->element->size;
-    Arg* rightarg = new Arg("ValueForm", to_string(arraylow), to_string(arraylow));
-    leftarg = midgenExpCode("-", leftarg, rightarg);
-    free(rightarg);
-    rightarg = new Arg("ValueForm", to_string(arraysize), to_string(arraysize));
+    Arg* rightarg = new Arg("ValueForm", to_string(arraylow), to_string(arraylow),"dir"); //ValueForm
+    leftarg = midgenExpCode("-", leftarg, rightarg);//a[x] 生成x-1
+//    free(rightarg);
+    rightarg = new Arg("ValueForm", to_string(arraysize), to_string(arraysize),"dir");
     rightarg = midgenExpCode("*", leftarg, rightarg);
     Arg* vararg = new Arg("AddrForm", arrayid->name, arrayid->name, arrayid->access, arrayid->level, arrayid->offset,arrayid);
     leftarg = midgenExpCode("AADD", vararg, rightarg);
     return leftarg;
 }
 
-void midCodeGenerate::midgenParamCode(string op, Arg *arg, int off, int size) {
+void midCodeGenerate::midgenParamCode(string op, Arg *arg, int off, int paramindex) {
     codeindex++;
     Arg* offarg = new Arg("ValueForm", to_string(off), to_string(off));
-    Arg* sizearg = new Arg("ValueForm", to_string(size), to_string(size));
-    FourArgExp* curargexp = new FourArgExp(op, codeindex, arg, offarg, sizearg);
+    Arg* paramindexarg = new Arg("ValueForm", to_string(paramindex), to_string(paramindex));
+    FourArgExp* curargexp = new FourArgExp(op, codeindex, arg, offarg, paramindexarg);
     argExpList.push_back(curargexp);
-    cout << curargexp->getfourArgExp() << endl;
+    if(MIDCODEDEBUG) cout << curargexp->getfourArgExp() << endl;
 }
 
 void midCodeGenerate::midgenProcEndCode() {
     codeindex++;
     FourArgExp* curargexp = new FourArgExp("ENDPROC", codeindex);
     argExpList.push_back(curargexp);
-    cout << curargexp->getfourArgExp() << endl;
+    if(MIDCODEDEBUG) cout << curargexp->getfourArgExp() << endl;
 }
 
 
@@ -521,26 +523,24 @@ void midCodeGenerate::midgenReturnCode(string op) {
     codeindex++;
     FourArgExp* curargexp = new FourArgExp(op, codeindex);
     argExpList.push_back(curargexp);
-    cout << curargexp->getfourArgExp() << endl;
+    if(MIDCODEDEBUG) cout << curargexp->getfourArgExp() << endl;
     return ;
 }
 
 void midCodeGenerate::curProAddTempVari(Arg* tmparg) {
-    curanalysispro->size ++ ;
-    curanalysispro->tempvarisize ++ ;
+    curanalysispro->size += 4 ;
+    curanalysispro->tempvarisize += 4 ;
     return ;
 }
 
 void midCodeGenerate::genRecordForMips() {
     Symbol* curpro = curanalysispro;
-    int varisize = curpro->size - curpro->paramsize - curpro->tempvarisize; //这是temp的起点
-    ActiveRecord* curactrecord = new ActiveRecord(curpro->name, curpro->size+4, 0, varisize, \
+    int varisize = curpro->size - curpro->paramsize - curpro->tempvarisize; //这是temp的起点 修改
+    ActiveRecord* curactrecord = new ActiveRecord(curpro->name, curpro->size+16, 0, varisize, \
      varisize + curpro->tempvarisize , curpro->size, curpro->level+1 );
     actrecord.push_back(curactrecord);
     return;
 }
-
-
 
 ActiveRecord *midCodeGenerate::findActRedByName(string tar) {
     int m = actrecord.size();
@@ -549,6 +549,18 @@ ActiveRecord *midCodeGenerate::findActRedByName(string tar) {
             return actrecord[i];
     }
     return nullptr;
+}
+
+int midCodeGenerate::findArgListIndexByName(string tar) {
+    int n = argExpList.size();
+    for(int i = 0; i < n; i++)
+    {
+        if(argExpList[i]->codekind == "PENTRY"){
+            if(argExpList[i]->arg1->name == tar)
+                return i;
+        }
+    }
+    return -1;
 }
 
 void midCodeGenerate::genCallChainForMips(vector<ActiveRecord*> curact, int i) {
@@ -586,14 +598,14 @@ void midCodeGenerate::genCallChainMentry() {
     }
 }
 
-int midCodeGenerate::findArgListIndexByName(string tar) {
+void midCodeGenerate::beautPrintExp() {
     int n = argExpList.size();
+    cout << "*****整理四元式*****" << endl;
     for(int i = 0; i < n; i++)
     {
-        if(argExpList[i]->codekind == "PENTRY"){
-            if(argExpList[i]->arg1->name == tar)
-                return i;
-        }
+        FourArgExp* curarg = argExpList[i];
+        curarg->beautPrint();
     }
-    return -1;
 }
+
+

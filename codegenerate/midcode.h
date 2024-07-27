@@ -8,9 +8,6 @@
 #include "grammar.h"
 class Arg{
 public:
-    Arg(){};
-    Arg(string f, string n,string va="", string acc="indir", int dl=0, int df=0,Symbol* s = nullptr ) : \
-        form(f),name(n),value(va), access(acc), datalevel(dl), dataoff(df),sym(s){};
     string form;
     string name; //也是label
     string value;
@@ -18,6 +15,10 @@ public:
     int datalevel;
     int dataoff;
     Symbol* sym;
+
+    Arg(){};
+    Arg(string f, string n,string va="", string acc="indir", int dl=0, int df=0,Symbol* s = nullptr ) : \
+        form(f),name(n),value(va), access(acc), datalevel(dl), dataoff(df),sym(s){};
 
     string getArgument(){
         if(form == "ValueForm"){
@@ -29,49 +30,79 @@ public:
 
 class ActiveRecord{
 public:
-    ActiveRecord(string p, int total, int vari = 0, int tempvar = 0,int parm = 0, int st = 0, int del = 0):\
-        procname(p), totalsize(total),varistart(vari), paramstart(parm), tempvaristart(tempvar),statestart(st), definelevel(del){};
     string procname;
     int totalsize;
     int varistart = 0; //先
-    int tempvaristart; //then
-    int paramstart;    //then
+    int tempvaristart; //区域2
+    int paramstart;    //区域3
     int statestart;   //状态信息4个：proc大小， 存储fp的位置， 返回值， 返回的地址
     int definelevel;
+
+    ActiveRecord(string p, int total, int vari = 0, int tempvar = 0,int parm = 0, int st = 0, int del = 0):\
+        procname(p), totalsize(total),varistart(vari), paramstart(parm), tempvaristart(tempvar),statestart(st), definelevel(del){};
 };
 
 class FourArgExp{
 public:
-    FourArgExp(string c, int in,  Arg* a1 = nullptr, Arg* a2 = nullptr, Arg* a3= nullptr): \
-        codekind(c),index(in), arg1(a1),arg2(a2),arg3(a3){}
     string codekind;
     int index;
     Arg* arg1;
     Arg* arg2;
     Arg* arg3;
 
+    FourArgExp(string c, int in,  Arg* a1 = nullptr, Arg* a2 = nullptr, Arg* a3= nullptr): \
+        codekind(c),index(in), arg1(a1),arg2(a2),arg3(a3){}
+
 
     string getfourArgExp(){
         string temp = to_string(index) + ":" + codekind + " ";
         if(arg1){
-            temp += " Agr1: " + arg1->form + " " + arg1->name + " " + arg1->access + " " + \
+            if(arg1->form == "ValueForm"){
+                temp += arg1->form + " " + arg1->name;
+            }
+            else{
+                temp += " Arg1: " + arg1->form + " " + arg1->name + " " + arg1->access + " " + \
                 to_string(arg1->datalevel) + " " + to_string(arg1->dataoff);
+            }
+            temp+= " ||| ";
         }
         if(arg2){
-            temp += " Agr2: " + arg2->name;
-            if(arg2->form == "AddrForm" || arg2->form == "TempForm"){
-                temp += '\n' + "Extra Arg2:" + arg2->form + " " + arg2->name + " " + arg2->access + " " + \
+            temp += " Arg2: ";
+            if(arg2->form == "ValueForm"){
+                temp += arg2->form + " " + arg2->name;
+            }
+            else if(arg2->form == "AddrForm" || arg2->form == "TempForm"){
+                temp +=  " " + arg2->form + " " + arg2->name + " " + arg2->access + " " + \
                 to_string(arg2->datalevel) + " " + to_string(arg2->dataoff);
             }
+            temp+= " ||| ";
         }
         if(arg3){
-            temp +=  " Agr3: " + arg3->name;
-            if(arg3->form == "AddrForm" || arg3->form == "TempForm"){
-                temp += '\n' + "Extra arg3:" + arg3->form + " " + arg3->name + " " + arg3->access + " " + \
+            temp +=  " Arg3: ";
+            if(arg2->form == "ValueForm"){
+                temp += arg2->form + " " + arg2->name;
+            }
+            else if(arg3->form == "AddrForm" || arg3->form == "TempForm"){
+                temp += " " + arg3->form + " " + arg3->name + " " + arg3->access + " " + \
                 to_string(arg3->datalevel) + " " + to_string(arg3->dataoff);
             }
         }
         return temp;
+    }
+
+    void beautPrint(){
+        if(arg1 && arg2 && arg3){
+            printf("(%s, %s, %s, %s)\n", codekind.c_str() , arg1->name.c_str(), arg2->name.c_str(), arg3->name.c_str());
+        }
+        else if(arg1 && arg2){
+            printf("(%s, %s, %s, -)\n",codekind.c_str(), arg1->name.c_str(), arg2->name.c_str());
+        }
+        else if(arg1){
+            printf("(%s, %s, -, -)\n",codekind.c_str(), arg1->name.c_str());
+        }
+        else {
+            printf("(%s, -, -, -)\n",codekind.c_str());
+        }
     }
 };
 
@@ -80,15 +111,12 @@ public:
 class labelTable{
 public:
     map<string,int> labelList;
-    int labelLen;
+
 
     void addToList(string Name, int index){
         labelList[Name] = index;
     }
 
-    void findLabelByName(string s){
-
-    }
 };
 
 
@@ -143,14 +171,18 @@ public:
     void midgenProcEndCode();
     void midgenReturnCode(string op);
 
-
     string symbolToWord(string op);
     void curProAddTempVari(Arg* tmparg);
 
-    void genRecordForMips();
-    void genCallChainMentry();
+
     int findArgListIndexByName(string tar);
-    void genCallChainForMips(vector<ActiveRecord*> curact, int i);
     ActiveRecord* findActRedByName(string tar);
+    void genRecordForMips(); //生成ActiveRecord
+    void genCallChainMentry(); //调用链
+    void genCallChainForMips(vector<ActiveRecord*> curact, int i);//递归过程生成
+
+
+    void beautPrintExp();
+
 
 };

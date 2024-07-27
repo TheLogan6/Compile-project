@@ -1,0 +1,13 @@
+program addall{累加所有数组和}
+var integer i,j,num,res;
+array[0..10] of integer a;
+begin
+    i := 1;
+    num := 5;
+    res := 1;
+    while i<num do
+        res := res + i + 1;
+        i:=i+1
+    endwh;
+    read(res)
+end.
